@@ -1,0 +1,10 @@
+name: "covid19"
+output_dir: "docs"
+navbar:
+  title: "Covid19 trend"
+  left:
+  - text: "SEIR Analysis"
+   href: draft_analysis.html
+output:
+  html_document:
+ theme: cosmo
