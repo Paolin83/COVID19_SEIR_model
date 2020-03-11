@@ -1,0 +1,86 @@
+---
+title: "COVID19 - Forecast analysis"
+author: "PG"
+date: "3/11/2020"
+output: rmarkdown::github_document
+---
+
+
+
+```{r setup, include=FALSE}
+rm(list=ls())
+###import italian dataset updated 10 March 2020
+dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-regioni/dpc-covid19-ita-regioni.csv",header=T)
+dat_csv<-dat_csv[dat_csv$codice_regione==5,]
+dat_csv$t<-1:dim(dat_csv)[1]
+```
+
+fit1 <- lm(log(totale_casi)~t,data=dat_csv)
+
+```{r cars}
+show(dat_csv)
+fit1 <- lm(log(totale_casi)~t,data=dat_csv)
+summary(fit1)
+```
+
+Estimates
+
+```{r model plot, echo=TRUE}
+plot(dat_csv$t,log(dat_csv$totale_casi),ylab="log cases",xlab="time")
+abline(coef(summary(fit1))[,1])
+```
+The slope coefficient estimated in the linear regression model can be used to estimate R0, the number of 
+```{r r0 plot, echo=TRUE}
+slope <-coef(summary(fit1))[2,1]; slope
+slope.se <- coef(summary(fit1))[2,2]; slope.se
+### R0 estimates and 95%IC 
+### I have used 14 for infection time, but it has a bimodal distribution (tested vs non tested)
+R_0=slope*14+1;R_0
+(slope+c(-1,1)*1.96*slope.se)*14+1
+```
+We want to make a short term forecast (14 days) with 3 scenario.
+We fix a series of initial parameters.
+```{r initation plot, echo=TRUE}
+# initial number of infectus
+I0<-max(dat_csv$totale_casi); I0
+# initial number of recovered
+R0<-max(dat_csv$dimessi_guariti); R0
+#beta 
+beta0<-R_0/(14)
+# Veneto poulation
+N=4800000
+# duration of COVID19 
+duration<-14
+#sigma0 is the coronavirus transmission rate fixed to 5%  (half of flu epidemic)
+sigma0<-0.05
+#mortality rate 
+mu0<-1/(82*365.25) # 1/lifespan
+```
+We use the library(EpiDynamics)
+```{r first scenario plot, echo=TRUE}
+library(EpiDynamics)
+parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
+# average number of single connections of an infected person
+# less contacts, less probability of new infections
+# we keep constant the other parameters
+f1<-10
+initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
+seir1 <- SEIR(pars = parameters, init = initials, time = 0:14)
+
+f2<-5
+initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
+seir2 <- SEIR(pars = parameters, init = initials, time = 0:14)
+
+f3<-3
+initials <- c(S = 0.95, E = (f3*I0/N), I = I0/N, R = R0/N)
+seir3 <- SEIR(pars = parameters, init = initials, time = 0:14)
+
+
+
+plot(c(dat_csv$totale_casi,seir1$results$I[-1]*N),type="l",ylab="Number of infectus",xlab="time")
+lines(c(dat_csv$totale_casi,seir2$results$I[-1]*N),col=2)
+lines(c(dat_csv$totale_casi,seir3$results$I[-1]*N),col=3)
+legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
+```
+
+
