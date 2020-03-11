@@ -7,7 +7,7 @@ fit1 \<-
     lm(log(totale\_casi)~t,data=dat\_csv)
 
 ``` r
-show(dat_csv)
+head(dat_csv)
 ```
 
     ##                    data stato codice_regione denominazione_regione     lat
@@ -17,17 +17,6 @@ show(dat_csv)
     ## 84  2020-02-27 18:00:00   ITA              5                Veneto 45.4349
     ## 105 2020-02-28 18:00:00   ITA              5                Veneto 45.4349
     ## 126 2020-02-29 17:00:00   ITA              5                Veneto 45.4349
-    ## 147 2020-03-01 17:00:00   ITA              5                Veneto 45.4349
-    ## 168 2020-03-02 18:00:00   ITA              5                Veneto 45.4349
-    ## 189 2020-03-03 18:00:00   ITA              5                Veneto 45.4349
-    ## 210 2020-03-04 17:00:00   ITA              5                Veneto 45.4349
-    ## 231 2020-03-05 17:00:00   ITA              5                Veneto 45.4349
-    ## 252 2020-03-06 17:00:00   ITA              5                Veneto 45.4349
-    ## 273 2020-03-07 18:00:00   ITA              5                Veneto 45.4349
-    ## 294 2020-03-08 18:00:00   ITA              5                Veneto 45.4349
-    ## 315 2020-03-09 18:00:00   ITA              5                Veneto 45.4349
-    ## 336 2020-03-10 18:00:00   ITA              5                Veneto 45.4349
-    ## 357 2020-03-11 17:00:00   ITA              5                Veneto 45.4349
     ##         long ricoverati_con_sintomi terapia_intensiva totale_ospedalizzati
     ## 21  12.33845                     12                 4                   16
     ## 42  12.33845                     12                 7                   19
@@ -35,17 +24,6 @@ show(dat_csv)
     ## 84  12.33845                     19                 8                   27
     ## 105 12.33845                     24                 9                   33
     ## 126 12.33845                     24                11                   35
-    ## 147 12.33845                     51                13                   64
-    ## 168 12.33845                     53                14                   67
-    ## 189 12.33845                     49                19                   68
-    ## 210 12.33845                     76                23                   99
-    ## 231 12.33845                     92                24                  116
-    ## 252 12.33845                    117                27                  144
-    ## 273 12.33845                    123                41                  164
-    ## 294 12.33845                    146                47                  193
-    ## 315 12.33845                    186                51                  237
-    ## 336 12.33845                    204                67                  271
-    ## 357 12.33845                    262                68                  330
     ##     isolamento_domiciliare totale_attualmente_positivi
     ## 21                      16                          32
     ## 42                      23                          42
@@ -53,17 +31,6 @@ show(dat_csv)
     ## 84                      82                         109
     ## 105                    116                         149
     ## 126                    154                         189
-    ## 147                    197                         261
-    ## 168                    204                         271
-    ## 189                    229                         297
-    ## 210                    246                         345
-    ## 231                    264                         380
-    ## 252                    310                         454
-    ## 273                    341                         505
-    ## 294                    430                         623
-    ## 315                    457                         694
-    ## 336                    512                         783
-    ## 357                    610                         940
     ##     nuovi_attualmente_positivi dimessi_guariti deceduti totale_casi
     ## 21                          32               0        1          33
     ## 42                          10               0        1          43
@@ -71,35 +38,13 @@ show(dat_csv)
     ## 84                          40               0        2         111
     ## 105                         40               0        2         151
     ## 126                         40               0        2         191
-    ## 147                         72               0        2         263
-    ## 168                         10               0        2         273
-    ## 189                         26               7        3         307
-    ## 210                         48               9        6         360
-    ## 231                         35              17       10         407
-    ## 252                         74              22       12         488
-    ## 273                         51              25       13         543
-    ## 294                        118              29       18         670
-    ## 315                         71              30       20         744
-    ## 336                         89              47       26         856
-    ## 357                        157              54       29        1023
-    ##     tamponi  t
-    ## 21     2200  1
-    ## 42     3780  2
-    ## 63     4900  3
-    ## 84     6164  4
-    ## 105    7414  5
-    ## 126    8659  6
-    ## 147    9056  7
-    ## 168    9782  8
-    ## 189   10176  9
-    ## 210   10515 10
-    ## 231   11949 11
-    ## 252   13023 12
-    ## 273   14429 13
-    ## 294   15918 14
-    ## 315   15956 15
-    ## 336   16643 16
-    ## 357   21400 17
+    ##     tamponi t
+    ## 21     2200 1
+    ## 42     3780 2
+    ## 63     4900 3
+    ## 84     6164 4
+    ## 105    7414 5
+    ## 126    8659 6
 
 ``` r
 fit1 <- lm(log(totale_casi)~t,data=dat_csv)
@@ -217,7 +162,7 @@ f2<-5
 initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
 seir2 <- SEIR(pars = parameters, init = initials, time = 0:14)
 
-f3<-3
+f3<-2
 initials <- c(S = 0.95, E = (f3*I0/N), I = I0/N, R = R0/N)
 seir3 <- SEIR(pars = parameters, init = initials, time = 0:14)
 
@@ -226,7 +171,7 @@ seir3 <- SEIR(pars = parameters, init = initials, time = 0:14)
 plot(c(dat_csv$totale_casi,seir1$results$I[-1]*N),type="l",ylab="Number of infectus",xlab="time")
 lines(c(dat_csv$totale_casi,seir2$results$I[-1]*N),col=2)
 lines(c(dat_csv$totale_casi,seir3$results$I[-1]*N),col=3)
-legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
+legend("topleft",c("1° scenario 10exp for case","2° scenario 5exp fo case","3° scenario 2exp for case"),lty=1,col=1:3)
 ```
 
 ![](draft_analysis_Veneto_files/figure-gfm/first%20scenario%20plot-1.png)<!-- -->

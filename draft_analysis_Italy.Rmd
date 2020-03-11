@@ -2,7 +2,7 @@
 title: "COVID19 - Forecast analysis"
 author: "PG"
 date: "3/11/2020"
-output: rmarkdown::github_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -18,32 +18,67 @@ The present analysis used the dataset on COVID19 updated in https://github.com/p
 We used a SEIR model to estimate the prediction of this epidemic in Italy.
 We estimated the R0 parameter by means of a simple linear regression ad in https://kingaa.github.io/clim-dis/parest/parest.html
 
-fit1 <- lm(log(totale_casi)~t,data=dat_csv)
 
-```{r cars}
-show(dat_csv)
+```{r  plot data, echo=TRUE}
+plot(dat_csv$data,dat_csv$totale_casi,ylab="Total Covid cases",xlab="Date")
+mean(diff(log(dat_csv$totale_casi)))
+```
+The grow is exponential (rate of increase of about 25\%). 
+We estimate the R0 parameter by means of a linear model. R0 indicates how contagious an infectious disease is. It's also referred to as the reproduction number.
+
+- <img src="https://latex.codecogs.com/gif.latex?log(Y_t) = a + b*t + e_t" />
+
+
+
+where $`Y_t`$ is the cumulative number of infected at the time t, while b is beta, the slope of the regression line.  
+
+
+The slope b indicate the rate of exponetial increase, used for the R0 calculation.   
+R code:  
+fit1 <- lm(log(totale_casi)~t,data=dat_csv)  
+
+```{r data}
+head(dat_csv)
 fit1 <- lm(log(totale_casi)~t,data=dat_csv)
 summary(fit1)
 ```
-
-Estimates
-
-You can also embed plots, for example:
+The prediction is  good ($R^2$ near 1).
+However the tendency is for a reduction of the slope. 
 
 ```{r model plot, echo=TRUE}
 plot(dat_csv$t,log(dat_csv$totale_casi),ylab="log cases",xlab="time")
 abline(coef(summary(fit1))[,1])
 ```
-The slope coefficient estimated in the linear regression model can be used to estimate R0, the number of 
+The slope coefficient estimated in the linear regression model can be used to estimate R0.  
+
+R0=1+b*incubation period.  
+
+
+The incubation period for the coronavirus is in mean 5.1 days with a range from 2-14 days.
+Please se https://www.worldometers.info/coronavirus/coronavirus-incubation-period/.
+In the calculation we considered an incubation period of 14 days for two reasons: 1) the majority are asymptomatic, contagiousness is greater than 5, maybe 14. A minority (who made the swab) will have a duration of about 5 days between the start of contagiousness and swab; 2) 14 days is the worst scenario to begin.
 ```{r r0 plot, echo=TRUE}
 slope <-coef(summary(fit1))[2,1]; slope
 slope.se <- coef(summary(fit1))[2,2]; slope.se
-### R0 estimates and 95%IC 
+### R0 estimates and 95% IC 
 R_0=slope*14+1;R_0
 (slope+c(-1,1)*1.96*slope.se)*14+1
 ```
-We want to make a short term forecast (14 days) with 3 scenario.
-We fix a series of initial parameters.
+We want to make a short term forecast (14 days) with 3 scenario:  
+-Scenario 1: 10 exposed people for each COVID-19 case and beta the same (no restrictions made or even no effects)
+-Scenario 2: 5 exposed people for each COVID-19 case and beta reduced of 50% (-50% both exposed people and -50% COVID19 contagious power)
+-Scenario 3: 3 exposed people for each COVID-19 case and beta reduced of 50%  (-70% both exposed people and -50% COVID19 contagious power)
+
+We fix a series of initial parameters:
+-I0: initial number of COVID-19 cases  
+- R0: initial number of recovered  
+- beta: the quantity connected to R0  
+- N: Italian population   
+- duration: infection duration of COVID-19   
+- sigma0: the coronavirus transmission rate (half of flu epidemic)  
+- mu0: the overall mortality rate  
+
+
 ```{r initation plot, echo=TRUE}
 # initial number of infectus
 I0<-max(dat_csv$totale_casi); I0
@@ -63,26 +98,29 @@ mu0<-1/(82*365.25) # 1/lifespan
 We use the library(EpiDynamics)
 ```{r first scenario plot, echo=TRUE}
 library(EpiDynamics)
-parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
+
 # average number of single connections of an infected person
 # less contacts, less probability of new infections
 # we keep constant the other parameters
+forecast<-14
+parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
 f1<-10
 initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
-seir1 <- SEIR(pars = parameters, init = initials, time = 0:14)
-
+seir1 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
+parameters <- c(mu = mu0, beta = beta0*1/2, sigma = sigma0, gamma = 1/duration)
 f2<-5
 initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
-seir2 <- SEIR(pars = parameters, init = initials, time = 0:14)
-
+seir2 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
+parameters <- c(mu = mu0, beta = beta0*1/2, sigma = sigma0, gamma = 1/duration)
 f3<-3
 initials <- c(S = 0.95, E = (f3*I0/N), I = I0/N, R = R0/N)
-seir3 <- SEIR(pars = parameters, init = initials, time = 0:14)
+seir3 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
 
 
-
-plot(c(dat_csv$totale_casi,seir1$results$I[-1]*N),type="l",ylab="Number of infectus",xlab="time")
-lines(c(dat_csv$totale_casi,seir2$results$I[-1]*N),col=2)
-lines(c(dat_csv$totale_casi,seir3$results$I[-1]*N),col=3)
+date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast-1+dim(dat_csv)[1],1)
+plot(date,c(dat_csv$totale_casi,seir1$results$I[-1]*N),type="l",ylab="Number of infectus",xlab="time")
+lines(date,c(dat_csv$totale_casi,seir2$results$I[-1]*N),col=2)
+lines(date,c(dat_csv$totale_casi,seir3$results$I[-1]*N),col=3)
+lines(date[1:dim(dat_csv)[1]],dat_csv$totale_casi,lwd=2)
 legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
 ```
