@@ -17,7 +17,24 @@ plot(dat_csv$data,dat_csv$totale_attualmente_positivi,ylab="Infected",xlab="Date
 ```
 
 fit1 <- lm(log(totale_attualmente_positivi)~t,data=dat_csv)
+The actual situation is 
+```{r plots}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+df <- dat_csv %>%
+  select(data, ricoverati_con_sintomi, terapia_intensiva, 
+         totale_ospedalizzati, isolamento_domiciliare, 
+         totale_attualmente_positivi, nuovi_attualmente_positivi, 
+         dimessi_guariti, deceduti, totale_casi) %>%
+  gather(key = "variable", value = "value", -data)
+head(df, 3)
 
+ggplot(df, aes(x = as.Date(data), y = value)) + 
+  geom_line(aes(color = variable), size = 1) 
+  ```
+  
+  
 ```{r cars}
 head(dat_csv)
 fit1 <- lm(log(totale_attualmente_positivi)~t,data=dat_csv)
@@ -40,9 +57,9 @@ R_0=slope*14+1;R_0
 (slope+c(-1,1)*1.96*slope.se)*14+1
 ```
 We want to make a short term forecast (14 days) with 3 scenario:  
--Scenario 1: 10 exposed people for each COVID-19 case and beta the same (no restrictions made or even no effects)
--Scenario 2: 10 exposed people for each COVID-19 case and beta reduced of 50% (-50% COVID19 contagious power)
--Scenario 3: 5 exposed people for each COVID-19 case and beta reduced of 50%  (-50% both exposed people and COVID19 contagious power)
+-Scenario 1: 10 exposed people for each COVID-19 case and beta the same (no restrictions made or even no effects)  
+-Scenario 2: 10 exposed people for each COVID-19 case and beta reduced of 50% (-50% exposed people)  
+-Scenario 3: 5 exposed people for each COVID-19 case and beta reduced of 50%  (-50% both exposed people and COVID19 contagious power)  
 
 We fix a series of initial parameters:
 -I0: initial number of COVID-19 cases  
@@ -76,8 +93,8 @@ parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
 f1<-10
 initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
 seir1 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
-parameters <- c(mu = mu0, beta = beta0*1/2, sigma = sigma0, gamma = 1/duration)
-f2<-10
+parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
+f2<-5
 initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
 seir2 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
 parameters <- c(mu = mu0, beta = beta0*1/2, sigma = sigma0, gamma = 1/duration)
@@ -93,16 +110,20 @@ lines(date,c(dat_csv$totale_attualmente_positivi,seir3$results$I[-1]*N),col=3)
 lines(date[1:dim(dat_csv)[1]],dat_csv$totale_attualmente_positivi,lwd=2)
 legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
 ```
-The 3 scenarios show how measures of restriction can help to reduce the number of infected.  
-At the end of the 2 weeks (`r date[length(date)]`) the number of infected is  (`r (seir2$results$I*N)[length(seir2$results$I)]`).
-In the next plot the cumulative number of infected.
+
+  
+The 3 scenarios show how measures of restriction can help to reduce the number of infected.    
+At the end of the 2 weeks (`r date[length(date)]`) the number of infected is estimated to be  (`r (seir2$results$I*N)[length(seir2$results$I)]`).  
+In the next plot the cumulative number of infected.  
 ```{r  cumulative plot, echo=TRUE}
 
-plot(date,cumsum(c(dat_csv$totale_attualmente_positivi,seir1$results$I[-1]*N)),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
-lines(date,cumsum(c(dat_csv$totale_attualmente_positivi,seir2$results$I[-1]*N)),col=2)
-lines(date,cumsum(c(dat_csv$totale_attualmente_positivi,seir3$results$I[-1]*N)),col=3)
-lines(date[1:dim(dat_csv)[1]],cumsum(dat_csv$totale_attualmente_positivi),lwd=2)
+plot(date,c(dat_csv$totale_casi,(seir1$results$I[-1]+seir1$results$R[-1])*N),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
+lines(date,c(dat_csv$totale_casi,(seir2$results$I[-1]+seir2$results$R[-1])*N),col=2)
+lines(date,c(dat_csv$totale_casi,(seir3$results$I[-1]+seir3$results$R[-1])*N),col=3)
+lines(date[1:dim(dat_csv)[1]],dat_csv$totale_casi,lwd=2)
 legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
+PlotMods(seir2)
+
 ```
 
 

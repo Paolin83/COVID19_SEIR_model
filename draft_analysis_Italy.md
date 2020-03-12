@@ -21,17 +21,61 @@ plot(dat_csv$data,dat_csv$totale_attualmente_positivi,ylab="Total Covid cases",x
 mean(diff(log(dat_csv$totale_attualmente_positivi)))
 ```
 
-    ## [1] 0.2418439
+    ## [1] 0.2389459
 
 The grow is exponential (rate of increase of about 25%). We estimate the
 R0 parameter by means of a linear model. R0 indicates how contagious an
-infectious disease is. It’s also referred to as the reproduction
-    number.
+infectious disease is. It’s also referred to as the reproduction number.
+
+\#estimate r0 \#see
+<https://kingaa.github.io/clim-dis/parest/parest.html> \#calculate r0
+based in the last XX observation
+
+``` r
+beta_vec<-NULL
+sd_vec<-NULL
+for (i in 1:(days-6)){
+fit <- lm(log(totale_attualmente_positivi)~t,data=dat_csv[i:days,])
+beta_vec<-c(beta_vec,coef(fit)[2])
+sd_vec<-c(sd_vec,coef(summary(fit))[2,2])
+}
+
+label <-days:7
+mean  <- (beta_vec*14+1)
+lower <- ((beta_vec-1.96*sd_vec)*14+1)
+upper <- ((beta_vec+1.96*sd_vec)*14+1)
+
+df <- data.frame(label, mean, lower, upper)
+df$label <- factor(df$label, levels=rev(df$label))
+
+library(ggplot2)
+```
+
+    ## Registered S3 methods overwritten by 'ggplot2':
+    ##   method         from 
+    ##   [.quosures     rlang
+    ##   c.quosures     rlang
+    ##   print.quosures rlang
+
+``` r
+fp <- ggplot(data=df, aes(x=label, y=mean, ymin=lower, ymax=upper)) +
+  geom_pointrange() + 
+  geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab("Last days used for the calculation") + ylab("R0 Mean (95% CI)") +
+  theme_bw()  # use a white background
+print(fp)
+```
+
+![](draft_analysis_Italy_files/figure-gfm/R0%20trend-1.png)<!-- -->
 
   - <img src="https://latex.codecogs.com/gif.latex?log(Y_t) = a + b*t + e_t" />
 
 where \(`Y_t`\) is the cumulative number of infected at the time t,
-while b is beta, the slope of the regression line.
+while b is beta, the slope of the regression line.  
+We calculate the R0 values based on a different number of days before
+the last. The R0 shows a decreasing trend, but it is stable in the last
+12 days.
 
 The slope b indicate the rate of exponetial increase, used for the R0
 calculation.  
@@ -82,19 +126,19 @@ summary(fit1)
     ## lm(formula = log(totale_attualmente_positivi) ~ t, data = dat_csv)
     ## 
     ## Residuals:
-    ##       Min        1Q    Median        3Q       Max 
-    ## -0.258470 -0.155400  0.004415  0.099651  0.275289 
+    ##      Min       1Q   Median       3Q      Max 
+    ## -0.28204 -0.15480  0.03257  0.10196  0.27824 
     ## 
     ## Coefficients:
     ##             Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept) 5.418073   0.079870   67.84  < 2e-16 ***
-    ## t           0.238560   0.007794   30.61 6.19e-15 ***
+    ## (Intercept) 5.446063   0.079891   68.17  < 2e-16 ***
+    ## t           0.234140   0.007381   31.72 7.12e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 0.1574 on 15 degrees of freedom
-    ## Multiple R-squared:  0.9842, Adjusted R-squared:  0.9832 
-    ## F-statistic: 936.7 on 1 and 15 DF,  p-value: 6.187e-15
+    ## Residual standard error: 0.1625 on 16 degrees of freedom
+    ## Multiple R-squared:  0.9844, Adjusted R-squared:  0.9834 
+    ## F-statistic:  1006 on 1 and 16 DF,  p-value: 7.115e-16
 
 The prediction is good (\(R^2\) near 1). However the tendency is for a
 reduction of the
@@ -124,33 +168,33 @@ duration of about 5 days between the start of contagiousness and swab;
 slope <-coef(summary(fit1))[2,1]; slope
 ```
 
-    ## [1] 0.2385597
+    ## [1] 0.2341403
 
 ``` r
 slope.se <- coef(summary(fit1))[2,2]; slope.se
 ```
 
-    ## [1] 0.007794469
+    ## [1] 0.007380637
 
 ``` r
 ### R0 estimates and 95% IC 
 R_0=slope*14+1;R_0
 ```
 
-    ## [1] 4.339836
+    ## [1] 4.277964
 
 ``` r
 (slope+c(-1,1)*1.96*slope.se)*14+1
 ```
 
-    ## [1] 4.125955 4.553716
+    ## [1] 4.075439 4.480489
 
 We want to make a short term forecast (14 days) with 3 scenario:  
 \-Scenario 1: 10 exposed people for each COVID-19 case and beta the same
 (no restrictions made or even no effects) -Scenario 2: 10 exposed people
-for each COVID-19 case and beta reduced of 50% (-50% COVID19 contagious
-power) -Scenario 3: 5 exposed people for each COVID-19 case and beta
-reduced of 50% (-50% both exposed people and COVID19 contagious power)
+for each COVID-19 case and beta reduced of 50% (-50% exposed people)
+-Scenario 3: 5 exposed people for each COVID-19 case and beta reduced of
+50% (-50% both exposed people and COVID19 contagious power)
 
 We fix a series of initial parameters: -I0: initial number of COVID-19
 cases  
@@ -166,14 +210,14 @@ cases
 I0<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I0
 ```
 
-    ## [1] 10590
+    ## [1] 12839
 
 ``` r
 # initial number of recovered
 R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
 ```
 
-    ## [1] 1045
+    ## [1] 1258
 
 ``` r
 #beta 
@@ -192,15 +236,7 @@ We use the library(EpiDynamics)
 
 ``` r
 library(EpiDynamics)
-```
 
-    ## Registered S3 methods overwritten by 'ggplot2':
-    ##   method         from 
-    ##   [.quosures     rlang
-    ##   c.quosures     rlang
-    ##   print.quosures rlang
-
-``` r
 # average number of single connections of an infected person
 # less contacts, less probability of new infections
 # we keep constant the other parameters
@@ -209,8 +245,8 @@ parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
 f1<-10
 initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
 seir1 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
-parameters <- c(mu = mu0, beta = beta0*1/2, sigma = sigma0, gamma = 1/duration)
-f2<-10
+parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
+f2<-5
 initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
 seir2 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
 parameters <- c(mu = mu0, beta = beta0*1/2, sigma = sigma0, gamma = 1/duration)
@@ -230,16 +266,22 @@ legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,co
 ![](draft_analysis_Italy_files/figure-gfm/scenario%20plot-1.png)<!-- -->
 The 3 scenarios show how measures of restriction can help to reduce the
 number of infected.  
-At the end of the 2 weeks (2020-03-25) the number of infected is
-(4.739564510^{4}). In the next plot the cumulative number of
+At the end of the 2 weeks (2020-03-26) the number of infected is
+(4.391582110^{4}). In the next plot the cumulative number of
 infected.
 
 ``` r
-plot(date,cumsum(c(dat_csv$totale_attualmente_positivi,seir1$results$I[-1]*N)),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
-lines(date,cumsum(c(dat_csv$totale_attualmente_positivi,seir2$results$I[-1]*N)),col=2)
-lines(date,cumsum(c(dat_csv$totale_attualmente_positivi,seir3$results$I[-1]*N)),col=3)
-lines(date[1:dim(dat_csv)[1]],cumsum(dat_csv$totale_attualmente_positivi),lwd=2)
+plot(date,c(dat_csv$totale_casi,(seir1$results$I[-1]+seir1$results$R[-1])*N),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
+lines(date,c(dat_csv$totale_casi,(seir2$results$I[-1]+seir2$results$R[-1])*N),col=2)
+lines(date,c(dat_csv$totale_casi,(seir3$results$I[-1]+seir3$results$R[-1])*N),col=3)
+lines(date[1:dim(dat_csv)[1]],(dat_csv$totale_casi),lwd=2)
 legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
 ```
 
 ![](draft_analysis_Italy_files/figure-gfm/cumulative%20plot-1.png)<!-- -->
+
+``` r
+PlotMods(seir2)
+```
+
+![](draft_analysis_Italy_files/figure-gfm/cumulative%20plot-2.png)<!-- -->

@@ -3,8 +3,56 @@ COVID19 - Forecast analysis
 PG
 3/11/2020
 
-fit1 \<-
-    lm(log(totale\_attualmente\_positivi)~t,data=dat\_csv)
+fit1 \<- lm(log(totale\_attualmente\_positivi)~t,data=dat\_csv) The
+actual situation is
+
+``` r
+library(tidyr)
+library(dplyr)
+```
+
+    ## 
+    ## Attaching package: 'dplyr'
+
+    ## The following objects are masked from 'package:stats':
+    ## 
+    ##     filter, lag
+
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     intersect, setdiff, setequal, union
+
+``` r
+library(ggplot2)
+```
+
+    ## Registered S3 methods overwritten by 'ggplot2':
+    ##   method         from 
+    ##   [.quosures     rlang
+    ##   c.quosures     rlang
+    ##   print.quosures rlang
+
+``` r
+df <- dat_csv %>%
+  select(data, ricoverati_con_sintomi, terapia_intensiva, 
+         totale_ospedalizzati, isolamento_domiciliare, 
+         totale_attualmente_positivi, nuovi_attualmente_positivi, 
+         dimessi_guariti, deceduti, totale_casi) %>%
+  gather(key = "variable", value = "value", -data)
+head(df, 3)
+```
+
+    ##                  data               variable value
+    ## 1 2020-02-24 18:00:00 ricoverati_con_sintomi    12
+    ## 2 2020-02-25 18:00:00 ricoverati_con_sintomi    12
+    ## 3 2020-02-26 18:00:00 ricoverati_con_sintomi    16
+
+``` r
+ggplot(df, aes(x = as.Date(data), y = value)) + 
+  geom_line(aes(color = variable), size = 1) 
+```
+
+![](draft_analysis_Veneto_files/figure-gfm/plots-1.png)<!-- -->
 
 ``` r
 head(dat_csv)
@@ -56,19 +104,19 @@ summary(fit1)
     ## lm(formula = log(totale_attualmente_positivi) ~ t, data = dat_csv)
     ## 
     ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -0.5137 -0.1337  0.0198  0.1733  0.4293 
+    ##      Min       1Q   Median       3Q      Max 
+    ## -0.52179 -0.13187 -0.00451  0.16701  0.43034 
     ## 
     ## Coefficients:
     ##             Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)  3.78683    0.13507   28.04 2.26e-14 ***
-    ## t            0.19262    0.01318   14.61 2.80e-10 ***
+    ## (Intercept)  3.79641    0.12712   29.86 1.84e-15 ***
+    ## t            0.19111    0.01174   16.27 2.24e-11 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 0.2662 on 15 degrees of freedom
-    ## Multiple R-squared:  0.9344, Adjusted R-squared:   0.93 
-    ## F-statistic: 213.6 on 1 and 15 DF,  p-value: 2.805e-10
+    ## Residual standard error: 0.2585 on 16 degrees of freedom
+    ## Multiple R-squared:  0.943,  Adjusted R-squared:  0.9395 
+    ## F-statistic: 264.8 on 1 and 16 DF,  p-value: 2.24e-11
 
 Estimates
 
@@ -85,13 +133,13 @@ used to estimate R0, the number of
 slope <-coef(summary(fit1))[2,1]; slope
 ```
 
-    ## [1] 0.1926221
+    ## [1] 0.1911094
 
 ``` r
 slope.se <- coef(summary(fit1))[2,2]; slope.se
 ```
 
-    ## [1] 0.01318112
+    ## [1] 0.01174425
 
 ``` r
 ### R0 estimates and 95%IC 
@@ -99,20 +147,21 @@ slope.se <- coef(summary(fit1))[2,2]; slope.se
 R_0=slope*14+1;R_0
 ```
 
-    ## [1] 3.696709
+    ## [1] 3.675532
 
 ``` r
 (slope+c(-1,1)*1.96*slope.se)*14+1
 ```
 
-    ## [1] 3.335019 4.058399
+    ## [1] 3.353270 3.997794
 
 We want to make a short term forecast (14 days) with 3 scenario:  
 \-Scenario 1: 10 exposed people for each COVID-19 case and beta the same
-(no restrictions made or even no effects) -Scenario 2: 10 exposed people
-for each COVID-19 case and beta reduced of 50% (-50% COVID19 contagious
-power) -Scenario 3: 5 exposed people for each COVID-19 case and beta
-reduced of 50% (-50% both exposed people and COVID19 contagious power)
+(no restrictions made or even no effects)  
+\-Scenario 2: 10 exposed people for each COVID-19 case and beta reduced
+of 50% (-50% exposed people)  
+\-Scenario 3: 5 exposed people for each COVID-19 case and beta reduced
+of 50% (-50% both exposed people and COVID19 contagious power)
 
 We fix a series of initial parameters: -I0: initial number of COVID-19
 cases  
@@ -128,14 +177,14 @@ cases
 I0<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I0
 ```
 
-    ## [1] 940
+    ## [1] 1297
 
 ``` r
 # initial number of recovered
 R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
 ```
 
-    ## [1] 54
+    ## [1] 55
 
 ``` r
 #beta 
@@ -154,22 +203,13 @@ We use the library(EpiDynamics)
 
 ``` r
 library(EpiDynamics)
-```
-
-    ## Registered S3 methods overwritten by 'ggplot2':
-    ##   method         from 
-    ##   [.quosures     rlang
-    ##   c.quosures     rlang
-    ##   print.quosures rlang
-
-``` r
 forecast<-14
 parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
 f1<-10
 initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
 seir1 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
-parameters <- c(mu = mu0, beta = beta0*1/2, sigma = sigma0, gamma = 1/duration)
-f2<-10
+parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
+f2<-5
 initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
 seir2 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
 parameters <- c(mu = mu0, beta = beta0*1/2, sigma = sigma0, gamma = 1/duration)
@@ -187,18 +227,26 @@ legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,co
 ```
 
 ![](draft_analysis_Veneto_files/figure-gfm/first%20scenario%20plot-1.png)<!-- -->
+
 The 3 scenarios show how measures of restriction can help to reduce the
 number of infected.  
-At the end of the 2 weeks (2020-03-25) the number of infected is
-(4041.7140611). In the next plot the cumulative number of
+At the end of the 2 weeks (2020-03-26) the number of infected is
+estimated to be (4108.1318828).  
+In the next plot the cumulative number of
 infected.
 
 ``` r
-plot(date,cumsum(c(dat_csv$totale_attualmente_positivi,seir1$results$I[-1]*N)),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
-lines(date,cumsum(c(dat_csv$totale_attualmente_positivi,seir2$results$I[-1]*N)),col=2)
-lines(date,cumsum(c(dat_csv$totale_attualmente_positivi,seir3$results$I[-1]*N)),col=3)
-lines(date[1:dim(dat_csv)[1]],cumsum(dat_csv$totale_attualmente_positivi),lwd=2)
+plot(date,c(dat_csv$totale_casi,(seir1$results$I[-1]+seir1$results$R[-1])*N),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
+lines(date,c(dat_csv$totale_casi,(seir2$results$I[-1]+seir2$results$R[-1])*N),col=2)
+lines(date,c(dat_csv$totale_casi,(seir3$results$I[-1]+seir3$results$R[-1])*N),col=3)
+lines(date[1:dim(dat_csv)[1]],dat_csv$totale_casi,lwd=2)
 legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
 ```
 
 ![](draft_analysis_Veneto_files/figure-gfm/cumulative%20plot-1.png)<!-- -->
+
+``` r
+PlotMods(seir2)
+```
+
+![](draft_analysis_Veneto_files/figure-gfm/cumulative%20plot-2.png)<!-- -->
