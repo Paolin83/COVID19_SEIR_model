@@ -112,13 +112,13 @@ used to estimate R0.
 R0=1+b\*incubation period.
 
 The incubation period for the coronavirus is in mean 5.1 days with a
-range from 2-14 days. Please se
+range from 2-14 days. Please see
 <https://www.worldometers.info/coronavirus/coronavirus-incubation-period/>.
 In the calculation we considered an incubation period of 14 days for two
-reasons: 1) the majority are asymptomatic, contagiousness is greater
-than 5, maybe 14. A minority (who made the swab) will have a duration of
-about 5 days between the start of contagiousness and swab; 2) 14 days is
-the worst scenario to begin.
+reasons: 1) the majority of cases is asymptomatic, contagiousness is
+greater than 5, maybe 14. A minority (who made the swab) will have a
+duration of about 5 days between the start of contagiousness and swab;
+2) 14 days is the worst scenario to consider.
 
 ``` r
 slope <-coef(summary(fit1))[2,1]; slope
