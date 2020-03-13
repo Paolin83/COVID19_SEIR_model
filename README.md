@@ -3,7 +3,7 @@ Prediction on COVID 19 epidemic using SEIR models with 3 scenarios
 
 - in Italy
 
-[a SEIR analysis Italy 12/03](draft_analysis_Italy.md)
+[a SEIR analysis Italy 13/03](draft_analysis_Italy.md)
 
 - in Veneto Region (poor commented)
 
