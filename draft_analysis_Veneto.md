@@ -1,7 +1,7 @@
 COVID19 - Forecast analysis
 ================
 PG
-3/11/2020
+3/13/2020
 
 fit1 \<- lm(log(totale\_attualmente\_positivi)~t,data=dat\_csv) The
 actual situation is
@@ -105,18 +105,18 @@ summary(fit1)
     ## 
     ## Residuals:
     ##      Min       1Q   Median       3Q      Max 
-    ## -0.52179 -0.13187 -0.00451  0.16701  0.43034 
+    ## -0.53486 -0.13087 -0.02048  0.16322  0.43111 
     ## 
     ## Coefficients:
     ##             Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)  3.79641    0.12712   29.86 1.84e-15 ***
-    ## t            0.19111    0.01174   16.27 2.24e-11 ***
+    ## (Intercept)  3.81179    0.12073   31.57  < 2e-16 ***
+    ## t            0.18880    0.01059   17.83 1.94e-12 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 0.2585 on 16 degrees of freedom
-    ## Multiple R-squared:  0.943,  Adjusted R-squared:  0.9395 
-    ## F-statistic: 264.8 on 1 and 16 DF,  p-value: 2.24e-11
+    ## Residual standard error: 0.2528 on 17 degrees of freedom
+    ## Multiple R-squared:  0.9492, Adjusted R-squared:  0.9463 
+    ## F-statistic: 317.9 on 1 and 17 DF,  p-value: 1.936e-12
 
 Estimates
 
@@ -133,13 +133,13 @@ used to estimate R0, the number of
 slope <-coef(summary(fit1))[2,1]; slope
 ```
 
-    ## [1] 0.1911094
+    ## [1] 0.1888025
 
 ``` r
 slope.se <- coef(summary(fit1))[2,2]; slope.se
 ```
 
-    ## [1] 0.01174425
+    ## [1] 0.01058848
 
 ``` r
 ### R0 estimates and 95%IC 
@@ -147,13 +147,13 @@ slope.se <- coef(summary(fit1))[2,2]; slope.se
 R_0=slope*14+1;R_0
 ```
 
-    ## [1] 3.675532
+    ## [1] 3.643235
 
 ``` r
 (slope+c(-1,1)*1.96*slope.se)*14+1
 ```
 
-    ## [1] 3.353270 3.997794
+    ## [1] 3.352687 3.933783
 
 We want to make a short term forecast (14 days) with 3 scenario:  
 \-Scenario 1: 10 exposed people for each COVID-19 case and beta the same
@@ -169,7 +169,8 @@ cases
 \- beta: the quantity connected to R0  
 \- N: Italian population  
 \- duration: infection duration of COVID-19  
-\- sigma0: the coronavirus transmission rate (half of flu epidemic)  
+\- sigma0: the coronavirus transmission rate (0.05 is the half of flu
+epidemic)  
 \- mu0: the overall mortality rate
 
 ``` r
@@ -177,20 +178,20 @@ cases
 I0<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I0
 ```
 
-    ## [1] 1297
+    ## [1] 1453
 
 ``` r
 # initial number of recovered
 R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
 ```
 
-    ## [1] 55
+    ## [1] 100
 
 ``` r
 #beta 
 beta0<-R_0/(14)
 # Veneto population
-N=4905000
+N=4905854
 # duration of COVID19 
 duration<-14
 #sigma0 is the coronavirus transmission rate fixed to 5%  (half of flu epidemic)
@@ -230,8 +231,8 @@ legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,co
 
 The 3 scenarios show how measures of restriction can help to reduce the
 number of infected.  
-At the end of the 2 weeks (2020-03-26) the number of infected is
-estimated to be (4108.1318828).  
+At the end of the 2 weeks (2020-03-27) the number of infected is
+estimated to be (4582.9107148).  
 In the next plot the cumulative number of
 infected.
 

@@ -1,7 +1,7 @@
 ---
 title: "COVID19 - Forecast analysis"
 author: "PG"
-date: "3/11/2020"
+date: "3/13/2020"
 output: github_document
 ---
 
@@ -17,16 +17,15 @@ dat_csv$t<-1:days
 ## The COVID dataset
 
 The present analysis used the dataset on COVID19 updated in https://github.com/pcm-dpc/COVID-19.
-We used a SEIR model to estimate the prediction of this epidemic in Italy.
-We estimated the R0 parameter by means of a simple linear regression ad in https://kingaa.github.io/clim-dis/parest/parest.html
+We used a SEIR model to predict the trend of the actual COVID19 epidemic in Italy.
+We estimated the R0 parameter by means of a linear regression model as reported in https://kingaa.github.io/clim-dis/parest/parest.html
 
 
 ```{r  plot data, echo=TRUE}
 plot(dat_csv$data,dat_csv$totale_attualmente_positivi,ylab="Total Covid cases",xlab="Date")
 mean(diff(log(dat_csv$totale_attualmente_positivi)))
 ```
-The grow is exponential (rate of increase of about 25\%). 
-We estimate the R0 parameter by means of a linear model. R0 indicates how contagious an infectious disease is. It's also referred to as the reproduction number.
+The plot shows an exponential gros. We estimate the R0 parameter by means of a linear model. R0 indicates how contagious an infectious disease is. It's also referred to as "the reproduction number" of COVID19.
 
 #estimate r0
 #see https://kingaa.github.io/clim-dis/parest/parest.html
@@ -66,33 +65,23 @@ print(fp)
 
 
 where $`Y_t`$ is the cumulative number of infected at the time t, while b is beta, the slope of the regression line.  
-We calculate the R0 values based on a different number of days before the last. 
-The R0 shows a decreasing trend, but it is stable in the last 12 days.
-
-The slope b indicate the rate of exponetial increase, used for the R0 calculation.   
+We calculate several R0 values, each one based on a different number of days before the last day. 
+The R0 shows a decreasing trend in the last period. The slope b indicates the rate of exponetial increase.  
+However we considere the value of the last 10 days, because is more stable.
 R code:  
-fit1 <- lm(log(totale_attualmente_positivi)~t,data=dat_csv)  
-
 ```{r data}
 head(dat_csv)
-fit1 <- lm(log(totale_attualmente_positivi)~t,data=dat_csv)
+fit1 <- lm(log(totale_attualmente_positivi)~t,data=dat_csv[(days-10):days,])
 summary(fit1)
 ```
-The prediction is  good ($R^2$ near 1).
-However the tendency is for a reduction of the slope. 
 
-```{r model plot, echo=TRUE}
-plot(dat_csv$t,log(dat_csv$totale_attualmente_positivi),ylab="log cases",xlab="time")
-abline(coef(summary(fit1))[,1])
-```
 The slope coefficient estimated in the linear regression model can be used to estimate R0.  
 
 R0=1+b*incubation period.  
 
-
 The incubation period for the coronavirus is in mean 5.1 days with a range from 2-14 days.
 Please see https://www.worldometers.info/coronavirus/coronavirus-incubation-period/.
-In the calculation we considered an incubation period of 14 days for two reasons: 1) the majority of cases is asymptomatic, contagiousness is greater than 5, maybe 14. A minority (who made the swab) will have a duration of about 5 days between the start of contagiousness and swab; 2) 14 days is the worst scenario to consider.
+In the calculation we considered an incubation period of 14 days for two reasons: 1) the majority of cases is asymptomatic, contagiousness is greater than 5, maybe 14. A minority (who made the swab) will have a duration of about 5 days between the start of contagiousness and swab; 2) 14 days is the worst scenario to consider in this phase.
 ```{r r0 plot, echo=TRUE}
 slope <-coef(summary(fit1))[2,1]; slope
 slope.se <- coef(summary(fit1))[2,2]; slope.se
@@ -106,7 +95,7 @@ We want to make a short term forecast (14 days) with 3 scenario:
 -Scenario 3: 5 exposed people for each COVID-19 case and beta reduced of 50%  (-50% both exposed people and COVID19 contagious power)
 
 We fix a series of initial parameters:
--I0: initial number of COVID-19 cases  
+- I0: initial number of COVID-19 cases  
 - R0: initial number of recovered  
 - beta: the quantity connected to R0  
 - N: Italian population   
@@ -131,7 +120,11 @@ sigma0<-0.05
 #mortality rate 
 mu0<-1/(82*365.25) # 1/lifespan
 ```
-We use the library(EpiDynamics)
+We use the library(EpiDynamics) and the function SEIR() to implement a SEIR model:  
+
+<img src="http://www.public.asu.edu/~hnesse/classes/seireqn.png"/>  
+
+
 ```{r  scenario plot, echo=TRUE}
 library(EpiDynamics)
 
@@ -159,10 +152,14 @@ lines(date,c(dat_csv$totale_attualmente_positivi,seir2$results$I[-1]*N),col=2)
 lines(date,c(dat_csv$totale_attualmente_positivi,seir3$results$I[-1]*N),col=3)
 lines(date[1:dim(dat_csv)[1]],dat_csv$totale_attualmente_positivi,lwd=2)
 legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
-```
-The 3 scenarios show how measures of restriction can help to reduce the number of infected.  
-At the end of the 2 weeks (`r date[length(date)]`) the number of infected is  (`r (seir2$results$I*N)[length(seir2$results$I)]`).
-In the next plot the cumulative number of infected.
+```  
+
+The 3 scenarios show different numbers. 
+If we consider the second scenario, at the end of the 2 weeks (`r date[length(date)]`) the number of infected is  (`r (seir2$results$I*N)[length(seir2$results$I)]`).  
+
+In the next plot the cumulative number of infected.  
+At the end of the 2 weeks (`r date[length(date)]`) the total number of COVID19 cases is expected to be  (`r ((seir2$results$I+seir3$results$R)*N)[length(seir2$results$I)]`).  
+
 ```{r  cumulative plot, echo=TRUE}
 
 plot(date,c(dat_csv$totale_casi,(seir1$results$I[-1]+seir1$results$R[-1])*N),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
@@ -170,5 +167,33 @@ lines(date,c(dat_csv$totale_casi,(seir2$results$I[-1]+seir2$results$R[-1])*N),co
 lines(date,c(dat_csv$totale_casi,(seir3$results$I[-1]+seir3$results$R[-1])*N),col=3)
 lines(date[1:dim(dat_csv)[1]],(dat_csv$totale_casi),lwd=2)
 legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
-PlotMods(seir2)
+```
+
+We make an effort to estimate the effect of restriction measures took by the Italian Government (11 March 2020). 
+After 14 days  (`r date[length(date)]`) we have the current status in the second scenario:  
+- I14=(`r (seir2$results$I*N)[length(seir2$results$I)]`);  
+- R14=(`r (seir2$results$R*N)[length(seir2$results$R)]`);  
+- S14=(`r (seir2$results$S*N)[length(seir2$results$S)]`);  
+- E14=(`r (seir2$results$E*N)[length(seir2$results$E)]`);  
+
+We reduce R0 to 1.10 and the number of exposed to the number of infected.
+We estimate the trend of the number infected, recovered and the total cases for other 14 days forward.
+
+```{r  scenario plot2, echo=TRUE}
+I14=seir2$results$I[length(seir2$results$I)]
+R14=seir2$results$R[length(seir2$results$I)]
+S14=seir2$results$S[length(seir2$results$I)]
+E14=seir2$results$E[length(seir2$results$I)]
+forecast2<-14
+beta14<-1.1/14
+parameters <- c(mu = mu0, beta = beta14, sigma = sigma0, gamma = 1/duration)
+initials <- c(S = 1-I14*2-R14, E = I14, I = I14, R = R14)
+seir2_2 <- SEIR(pars = parameters, init = initials, time = 0:forecast2)
+
+date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast2+forecast-1+dim(dat_csv)[1],1)
+plot(date,c(dat_csv$totale_attualmente_positivi,seir2$results$I[-1]*N,seir2_2$results$I[-1]*N),type="l",ylab="Cases",xlab="time",ylim=c(0,((seir2_2$results$I+seir2_2$results$R[-1])*N)[forecast2]),col=2)
+lines(date,c(dat_csv$dimessi_guariti,seir2$results$R[-1]*N,seir2_2$results$R[-1]*N),col=3)
+lines(date,c(dat_csv$totale_casi,(seir2$results$I[-1]+seir2$results$R[-1])*N,c(seir2_2$results$I[-1]+seir2_2$results$R[-1])*N),col=1)
+
+legend("topleft",c("All cases","Infected","Recovered"),lty=1,col=1:3)
 ```
