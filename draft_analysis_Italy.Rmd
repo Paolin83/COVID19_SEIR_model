@@ -18,14 +18,28 @@ dat_csv$t<-1:days
 
 The present analysis used the dataset on COVID19 updated in https://github.com/pcm-dpc/COVID-19.
 We used a SEIR model to predict the trend of the actual COVID19 epidemic in Italy.
-We estimated the R0 parameter by means of a linear regression model as reported in https://kingaa.github.io/clim-dis/parest/parest.html
+We estimated the R0 parameter by means of a linear regression model as reported in https://kingaa.github.io/clim-dis/parest/parest.html  
 
 
-```{r  plot data, echo=TRUE}
-plot(dat_csv$data,dat_csv$totale_attualmente_positivi,ylab="Total Covid cases",xlab="Date")
-mean(diff(log(dat_csv$totale_attualmente_positivi)))
-```
-The plot shows an exponential gros. We estimate the R0 parameter by means of a linear model. R0 indicates how contagious an infectious disease is. It's also referred to as "the reproduction number" of COVID19.
+The actual status is   
+
+```{r plots}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+df <- dat_csv %>%
+  select(data, ricoverati_con_sintomi, terapia_intensiva, 
+         totale_ospedalizzati, isolamento_domiciliare, 
+         totale_attualmente_positivi, nuovi_attualmente_positivi, 
+         dimessi_guariti, deceduti, totale_casi) %>%
+  gather(key = "variable", value = "value", -data)
+head(df, 3)
+
+ggplot(df, aes(x = as.Date(data), y = value)) + 
+  geom_line(aes(color = variable), size = 1) 
+  ```
+  
+The plot shows an exponential grow. We estimate the R0 parameter by means of a linear model. R0 indicates how contagious an infectious disease is. It is also referred to as "the reproduction number" of COVID19.
 
 #estimate r0
 #see https://kingaa.github.io/clim-dis/parest/parest.html
@@ -67,7 +81,8 @@ print(fp)
 where $`Y_t`$ is the cumulative number of infected at the time t, while b is beta, the slope of the regression line.  
 We calculate several R0 values, each one based on a different number of days before the last day. 
 The R0 shows a decreasing trend in the last period. The slope b indicates the rate of exponetial increase.  
-However we considere the value of the last 10 days, because is more stable.
+However we considere the value of the last 10 days, because is more stable.  
+
 R code:  
 ```{r data}
 head(dat_csv)
@@ -89,9 +104,12 @@ slope.se <- coef(summary(fit1))[2,2]; slope.se
 R_0=slope*14+1;R_0
 (slope+c(-1,1)*1.96*slope.se)*14+1
 ```
-We want to make a short term forecast (14 days) with 3 scenario:  
--Scenario 1: 10 exposed people for each COVID-19 case and beta the same (no restrictions made or even no effects)
--Scenario 2: 10 exposed people for each COVID-19 case and beta reduced of 50% (-50% exposed people)
+We want to make a short term forecast (14 days) with 3 scenario:   
+
+-Scenario 1: 10 exposed people for each COVID-19 case and beta the same (no restrictions made or even no effects)  
+
+-Scenario 2: 10 exposed people for each COVID-19 case and beta reduced of 50% (-50% exposed people)  
+
 -Scenario 3: 5 exposed people for each COVID-19 case and beta reduced of 50%  (-50% both exposed people and COVID19 contagious power)
 
 We fix a series of initial parameters:

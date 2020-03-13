@@ -1,7 +1,7 @@
 COVID19 - Forecast analysis
 ================
 PG
-3/11/2020
+3/13/2020
 
 ## The COVID dataset
 
@@ -11,21 +11,59 @@ the trend of the actual COVID19 epidemic in Italy. We estimated the R0
 parameter by means of a linear regression model as reported in
 <https://kingaa.github.io/clim-dis/parest/parest.html>
 
-``` r
-plot(dat_csv$data,dat_csv$totale_attualmente_positivi,ylab="Total Covid cases",xlab="Date")
-```
-
-![](draft_analysis_Italy_files/figure-gfm/plot%20data-1.png)<!-- -->
+The actual status is
 
 ``` r
-mean(diff(log(dat_csv$totale_attualmente_positivi)))
+library(tidyr)
+library(dplyr)
 ```
 
-    ## [1] 0.2341466
+    ## 
+    ## Attaching package: 'dplyr'
 
-The plot shows an exponential gros. We estimate the R0 parameter by
+    ## The following objects are masked from 'package:stats':
+    ## 
+    ##     filter, lag
+
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     intersect, setdiff, setequal, union
+
+``` r
+library(ggplot2)
+```
+
+    ## Registered S3 methods overwritten by 'ggplot2':
+    ##   method         from 
+    ##   [.quosures     rlang
+    ##   c.quosures     rlang
+    ##   print.quosures rlang
+
+``` r
+df <- dat_csv %>%
+  select(data, ricoverati_con_sintomi, terapia_intensiva, 
+         totale_ospedalizzati, isolamento_domiciliare, 
+         totale_attualmente_positivi, nuovi_attualmente_positivi, 
+         dimessi_guariti, deceduti, totale_casi) %>%
+  gather(key = "variable", value = "value", -data)
+head(df, 3)
+```
+
+    ##                  data               variable value
+    ## 1 2020-02-24 18:00:00 ricoverati_con_sintomi   101
+    ## 2 2020-02-25 18:00:00 ricoverati_con_sintomi   114
+    ## 3 2020-02-26 18:00:00 ricoverati_con_sintomi   128
+
+``` r
+ggplot(df, aes(x = as.Date(data), y = value)) + 
+  geom_line(aes(color = variable), size = 1) 
+```
+
+![](draft_analysis_Italy_files/figure-gfm/plots-1.png)<!-- -->
+
+The plot shows an exponential grow. We estimate the R0 parameter by
 means of a linear model. R0 indicates how contagious an infectious
-disease is. It’s also referred to as “the reproduction number” of
+disease is. It is also referred to as “the reproduction number” of
 COVID19.
 
 \#estimate r0 \#see
@@ -50,15 +88,6 @@ df <- data.frame(label, mean, lower, upper)
 df$label <- factor(df$label, levels=rev(df$label))
 
 library(ggplot2)
-```
-
-    ## Registered S3 methods overwritten by 'ggplot2':
-    ##   method         from 
-    ##   [.quosures     rlang
-    ##   c.quosures     rlang
-    ##   print.quosures rlang
-
-``` r
 fp <- ggplot(data=df, aes(x=label, y=mean, ymin=lower, ymax=upper)) +
   geom_pointrange() + 
   geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
@@ -78,7 +107,9 @@ We calculate several R0 values, each one based on a different number of
 days before the last day. The R0 shows a decreasing trend in the last
 period. The slope b indicates the rate of exponetial increase.  
 However we considere the value of the last 10 days, because is more
-stable. R
+stable.
+
+R
     code:
 
 ``` r
@@ -139,8 +170,6 @@ summary(fit1)
     ## Multiple R-squared:  0.9951, Adjusted R-squared:  0.9946 
     ## F-statistic:  1843 on 1 and 9 DF,  p-value: 1.008e-11
 
-The exponential grow shows a good fits to data (\(R^2\) is near to 1).
-
 The slope coefficient estimated in the linear regression model can be
 used to estimate R0.
 
@@ -180,12 +209,16 @@ R_0=slope*14+1;R_0
 
     ## [1] 3.572643 3.818813
 
-We want to make a short term forecast (14 days) with 3 scenario:  
+We want to make a short term forecast (14 days) with 3 scenario:
+
 \-Scenario 1: 10 exposed people for each COVID-19 case and beta the same
-(no restrictions made or even no effects) -Scenario 2: 10 exposed people
-for each COVID-19 case and beta reduced of 50% (-50% exposed people)
--Scenario 3: 5 exposed people for each COVID-19 case and beta reduced of
-50% (-50% both exposed people and COVID19 contagious power)
+(no restrictions made or even no effects)
+
+\-Scenario 2: 10 exposed people for each COVID-19 case and beta reduced
+of 50% (-50% exposed people)
+
+\-Scenario 3: 5 exposed people for each COVID-19 case and beta reduced
+of 50% (-50% both exposed people and COVID19 contagious power)
 
 We fix a series of initial parameters: - I0: initial number of COVID-19
 cases  
