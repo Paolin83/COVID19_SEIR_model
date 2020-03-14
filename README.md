@@ -10,4 +10,4 @@ Prediction on COVID 19 epidemic using SEIR models with 3 scenarios
 [a SEIR analysis Veneto 13/03](draft_analysis_Veneto.md)
 
 
-(analysis updated on 12 March 2020)
+(analysis updated on 13 March 2020)
