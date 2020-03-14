@@ -18,7 +18,7 @@ dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dat
 #we restricted the analysis to the Veneto Region
 dat_csv<-dat_csv[dat_csv$codice_regione==5,]
 dat_csv$t<-1:dim(dat_csv)[1]
-plot(as.Date(substr(dat_csv$data,1,10)),dat_csv$totale_attualmente_positivi,ylab="Now infected",xlab="Date",type="l")
+plot(as.Date(substr(dat_csv$data,1,10)),dat_csv$totale_attualmente_positivi,ylab=" Infected",xlab="Date",type="l")
 points(as.Date(substr(dat_csv$data,1,10)),dat_csv$totale_attualmente_positivi)
 ```
 
@@ -274,7 +274,7 @@ plot(date,c(dat_csv$totale_attualmente_positivi,seir1$I*N),type="l",ylab="Cases"
 lines(date,c(dat_csv$totale_attualmente_positivi,seir2$I*N),col=2)
 lines(date,c(dat_csv$totale_attualmente_positivi,seir3$I*N),col=3)
 lines(date[1:dim(dat_csv)[1]],dat_csv$totale_attualmente_positivi,lwd=2)
-legend("topleft",c("first scenario - Exp=10*I","second scenario Exp=5*I","third scenario Exp=3*I"),lty=1,col=1:3)
+legend("topleft",c("Scenario 1 - Exp=10*I","Scenario - Exp=5*I","Scenario - Exp=3*I"),lty=1,col=1:3)
 ```
 
 ![](draft_analysis_Veneto_files/figure-gfm/scenario%20plot-1.png)<!-- -->
@@ -293,7 +293,7 @@ plot(date,c(dat_csv$totale_casi,(seir1$I+seir1$R)*N),type="l",ylab="Cases",xlab=
 lines(date,c(dat_csv$totale_casi,(seir2$I+seir2$R)*N),col=2)
 lines(date,c(dat_csv$totale_casi,(seir3$I+seir3$R)*N),col=3)
 lines(date[1:dim(dat_csv)[1]],(dat_csv$totale_casi),lwd=2)
-legend("topleft",c("first scenario - Exp=10*I","second scenario Exp=5*I","third scenario Exp=3*I"),lty=1,col=1:3)
+legend("topleft",c("Scenario 1 - Exp=10*I","Scenario 2 - Exp=5*I","Scenario 3 - Exp=3*I"),lty=1,col=1:3)
 ```
 
 ![](draft_analysis_Veneto_files/figure-gfm/cumulative%20plot-1.png)<!-- -->
