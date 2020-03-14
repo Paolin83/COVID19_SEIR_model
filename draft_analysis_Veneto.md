@@ -1,10 +1,17 @@
-COVID19 - Forecast analysis
+COVID19 - Forecast analysis - time dependent SEIR model - Veneto
 ================
 PG
 3/13/2020
 
-fit1 \<- lm(log(totale\_attualmente\_positivi)~t,data=dat\_csv) The
-actual situation is
+## The COVID dataset
+
+The present analysis used the dataset on COVID19 updated in
+<https://github.com/pcm-dpc/COVID-19>. We used a SEIR model to predict
+the trend of the actual COVID19 epidemic in Italy. We estimated the R0
+parameter by means of a linear regression model as reported in
+<https://kingaa.github.io/clim-dis/parest/parest.html>
+
+The actual status is
 
 ``` r
 library(tidyr)
@@ -54,124 +61,132 @@ ggplot(df, aes(x = as.Date(data), y = value)) +
 
 ![](draft_analysis_Veneto_files/figure-gfm/plots-1.png)<!-- -->
 
-``` r
-head(dat_csv)
-```
+The plot shows an exponential grow. We estimate the R0 parameter by
+means of a linear model. R0 indicates how contagious an infectious
+disease is. It is also referred to as “the reproduction number” of
+COVID19.
 
-    ##                    data stato codice_regione denominazione_regione     lat
-    ## 21  2020-02-24 18:00:00   ITA              5                Veneto 45.4349
-    ## 42  2020-02-25 18:00:00   ITA              5                Veneto 45.4349
-    ## 63  2020-02-26 18:00:00   ITA              5                Veneto 45.4349
-    ## 84  2020-02-27 18:00:00   ITA              5                Veneto 45.4349
-    ## 105 2020-02-28 18:00:00   ITA              5                Veneto 45.4349
-    ## 126 2020-02-29 17:00:00   ITA              5                Veneto 45.4349
-    ##         long ricoverati_con_sintomi terapia_intensiva totale_ospedalizzati
-    ## 21  12.33845                     12                 4                   16
-    ## 42  12.33845                     12                 7                   19
-    ## 63  12.33845                     16                 8                   24
-    ## 84  12.33845                     19                 8                   27
-    ## 105 12.33845                     24                 9                   33
-    ## 126 12.33845                     24                11                   35
-    ##     isolamento_domiciliare totale_attualmente_positivi
-    ## 21                      16                          32
-    ## 42                      23                          42
-    ## 63                      45                          69
-    ## 84                      82                         109
-    ## 105                    116                         149
-    ## 126                    154                         189
-    ##     nuovi_attualmente_positivi dimessi_guariti deceduti totale_casi
-    ## 21                          32               0        1          33
-    ## 42                          10               0        1          43
-    ## 63                          27               0        2          71
-    ## 84                          40               0        2         111
-    ## 105                         40               0        2         151
-    ## 126                         40               0        2         191
-    ##     tamponi t
-    ## 21     2200 1
-    ## 42     3780 2
-    ## 63     4900 3
-    ## 84     6164 4
-    ## 105    7414 5
-    ## 126    8659 6
+\#estimate r0 \#see
+<https://kingaa.github.io/clim-dis/parest/parest.html> \#calculate r0
+based in the last XX observation
 
 ``` r
-fit1 <- lm(log(totale_attualmente_positivi)~t,data=dat_csv)
-summary(fit1)
+beta_vec<-NULL
+sd_vec<-NULL
+for (i in 1:(days-4)){
+fit <- lm(log(totale_attualmente_positivi)~t,data=dat_csv[i:days,])
+beta_vec<-c(beta_vec,coef(fit)[2])
+sd_vec<-c(sd_vec,coef(summary(fit))[2,2])
+}
+
+
+label <-days:5
+mean  <- (beta_vec*14)
+lower <- ((beta_vec-1.96*sd_vec)*14)
+upper <- ((beta_vec+1.96*sd_vec)*14)
+
+df <- data.frame(label, mean, lower, upper)
+df$label <- factor(df$label, levels=rev(df$label))
+
+library(ggplot2)
+fp <- ggplot(data=df, aes(x=label, y=mean, ymin=lower, ymax=upper)) +
+  geom_pointrange() + 
+  geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab("Last days used for the calculation") + ylab("R0 Mean (95% CI)") +
+  theme_bw()  # use a white background
+print(fp)
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = log(totale_attualmente_positivi) ~ t, data = dat_csv)
-    ## 
-    ## Residuals:
-    ##      Min       1Q   Median       3Q      Max 
-    ## -0.53486 -0.13087 -0.02048  0.16322  0.43111 
-    ## 
-    ## Coefficients:
-    ##             Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)  3.81179    0.12073   31.57  < 2e-16 ***
-    ## t            0.18880    0.01059   17.83 1.94e-12 ***
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 0.2528 on 17 degrees of freedom
-    ## Multiple R-squared:  0.9492, Adjusted R-squared:  0.9463 
-    ## F-statistic: 317.9 on 1 and 17 DF,  p-value: 1.936e-12
+![](draft_analysis_Veneto_files/figure-gfm/R0%20trend-1.png)<!-- -->
 
-Estimates
+\[Y_t= a + \beta  t +e_t  \]
 
-``` r
-plot(dat_csv$t,log(dat_csv$totale_attualmente_positivi),ylab="log cases",xlab="time")
-abline(coef(summary(fit1))[,1])
-```
-
-![](draft_analysis_Veneto_files/figure-gfm/model%20plot-1.png)<!-- -->
+where \(`Y_t`\) is the cumulative number of infected at the time t,
+while b is beta, the slope of the regression line.  
 The slope coefficient estimated in the linear regression model can be
-used to estimate R0, the number of
+used to estimate R0.
+
+R0=slope\*incubation period.
+
+The incubation period for the coronavirus is in mean 5.1 days with a
+range from 2-14 days. Please see
+<https://www.worldometers.info/coronavirus/coronavirus-incubation-period/>,
+but the incubation period is used for epidemic diseases that causes the
+immediate isolation of the infected subject.
+
+In the calculation we considered an “incubation period” of 14 days for
+two reasons: 1) the majority of cases is asymptomatic, contagiousness is
+greater than 5, maybe 14. A minority (who made the swab) will have a
+duration of about 5 days between the start of contagiousness and swab;
+2) 14 days is the worst scenario to consider in this phase.
+
+We calculate several R0 values, each one based on a different number of
+days before the last day. The R0 shows a decreasing trend in the last
+period. The slope b indicates the rate of exponetial increase.  
+However,R0 is going to decrease in the next days. We use the estimated
+trend between R0 and time to calculate the future R0 value for the next
+14 days. We predict beta (and R0) for the next 14 days assuming a Gamma
+distribution for the beta (the slope) forcing its value greater than 0.
 
 ``` r
-slope <-coef(summary(fit1))[2,1]; slope
+library(splines)
+time<-1:(days-4)
+
+beta.model<-glm(beta_vec~bs(time,3),weights = 1/sd_vec,family=Gamma)
+forecast=14
+# add 'fit', 'lwr', and 'upr' columns to dataframe (generated by predict)
+pre<-predict(beta.model,type='response',newdata=data.frame(time=1:(days+forecast)),se.fit=TRUE)
 ```
 
-    ## [1] 0.1888025
+    ## Warning in bs(time, degree = 3L, knots = numeric(0), Boundary.knots =
+    ## c(1L, : some 'x' values beyond boundary knots may cause ill-conditioned
+    ## bases
 
 ``` r
-slope.se <- coef(summary(fit1))[2,2]; slope.se
+date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast-1+dim(dat_csv)[1],1)
+beta.predict <- data.frame(beta_vec=c(beta_vec,rep(NA,forecast+4)),time=date,fit=pre$fit,lwr=pre$fit-1*1.96*pre$se.fit,upr=pre$fit+1*1.96*pre$se.fit)
+
+r0.predict<-beta.predict
+r0.predict[,c(1,3:5)]<-r0.predict[,c(1,3:5)]*14
+# plot the points (actual observations), regression line, and confidence interval
+p <- ggplot(r0.predict, aes(date,beta_vec))
+p <- p + geom_point() +labs(x="time from t0",y="R0 value") 
+p <- p + geom_line(aes(date,fit))
+p <- p + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.3)
+p
 ```
 
-    ## [1] 0.01058848
+    ## Warning: Removed 18 rows containing missing values (geom_point).
 
-``` r
-### R0 estimates and 95%IC 
-### I have used 14 for infection time, but it has a bimodal distribution (tested vs non tested)
-R_0=slope*14+1;R_0
-```
+![](draft_analysis_Veneto_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
-    ## [1] 3.643235
+R0 passes from values around to 3 in the initial phase to values \<1 at
+the ending of the 14-days forecast.
 
-``` r
-(slope+c(-1,1)*1.96*slope.se)*14+1
-```
+We want to make a short term forecast (14 days) with 3 scenario:
 
-    ## [1] 3.352687 3.933783
+\-Scenario 1: 10 exposed people for each COVID-19 case (no restrictions
+made or even no effects)
 
-We want to make a short term forecast (14 days) with 3 scenario:  
-\-Scenario 1: 10 exposed people for each COVID-19 case and beta the same
-(no restrictions made or even no effects)  
-\-Scenario 2: 10 exposed people for each COVID-19 case and beta reduced
-of 50% (-50% exposed people)  
-\-Scenario 3: 5 exposed people for each COVID-19 case and beta reduced
-of 50% (-50% both exposed people and COVID19 contagious power)
+\-Scenario 2: 5 exposed people for each COVID-19 case (-50% exposed
+people)
 
-We fix a series of initial parameters: -I0: initial number of COVID-19
-cases  
-\- R0: initial number of recovered  
-\- beta: the quantity connected to R0  
-\- N: Italian population  
-\- duration: infection duration of COVID-19  
-\- sigma0: the coronavirus transmission rate (0.05 is the half of flu
-epidemic)  
-\- mu0: the overall mortality rate
+\-Scenario 3: 3 exposed people for each COVID-19 case (-70% exposed
+people)
+
+We use a SEIR model fixing a series of initial parameters:
+
+  - I0: initial number of COVID-19 cases  
+  - R0: initial number of recovered  
+  - beta: the quantity connected to R0 is considered to vary according
+    the previous estimation
+  - N: population of the Veneto Region
+  - duration: infection duration of COVID-19  
+  - sigma0: the coronavirus transmission rate (half of flu epidemic)  
+  - mu0: the overall mortality rate
+
+<!-- end list -->
 
 ``` r
 # initial number of infectus
@@ -188,9 +203,7 @@ R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
     ## [1] 100
 
 ``` r
-#beta 
-beta0<-R_0/(14)
-# Veneto population
+# italian poulation
 N=4905854
 # duration of COVID19 
 duration<-14
@@ -200,54 +213,67 @@ sigma0<-0.05
 mu0<-1/(82*365.25) # 1/lifespan
 ```
 
-We use the library(EpiDynamics)
+We use the library(EpiDynamics) and the function SEIR() to implement a
+SEIR
+model:
+
+<img src="http://www.public.asu.edu/~hnesse/classes/seireqn.png"/>  
+<img src="https://upload.wikimedia.org/wikipedia/commons/3/3d/SEIR.PNG"/>
+
+where the parameter beta here is time dependent, as estimated before.
 
 ``` r
 library(EpiDynamics)
-forecast<-14
-parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
-f1<-10
-initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
-seir1 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
-parameters <- c(mu = mu0, beta = beta0, sigma = sigma0, gamma = 1/duration)
-f2<-5
-initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
-seir2 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
-parameters <- c(mu = mu0, beta = beta0*1/2, sigma = sigma0, gamma = 1/duration)
-f3<-5
-initials <- c(S = 0.95, E = (f3*I0/N), I = I0/N, R = R0/N)
-seir3 <- SEIR(pars = parameters, init = initials, time = 0:forecast)
 
+# average number of single connections of an infected person
+# less contacts, less probability of new infections
+# we keep constant the other parameters
+forecast<-14
+seir1<-seir2<-seir3<-NULL
+for(i in 1:forecast){
+parameters <- c(mu = mu0, beta = beta.predict$fit[days+i], sigma = sigma0, gamma = 1/duration)
+f1<-10
+if( i==1) initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
+if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
+seir1_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
+seir1 <- rbind(seir1,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
+f2<-5
+if( i==1) initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
+if( i>1) initials <- c(S = seir2_temp$results$S[2], E = seir2_temp$results$E[2], I =seir2_temp$results$I[2], R = seir2_temp$results$R[2])
+seir2_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
+seir2 <- rbind(seir2,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
+f3<-3
+if( i==1) initials <- c(S = 0.95, E = (f3*I0/N), I = I0/N, R = R0/N)
+if( i>1) initials <- c(S = seir3_temp$results$S[2], E = seir3_temp$results$E[2], I =seir3_temp$results$I[2], R = seir3_temp$results$R[2])
+seir3_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
+seir3 <- rbind(seir3,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
+}
 
 date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast-1+dim(dat_csv)[1],1)
-plot(date,c(dat_csv$totale_attualmente_positivi,seir1$results$I[-1]*N),type="l",ylab="Cases",xlab="time",main="Infected")
-lines(date,c(dat_csv$totale_attualmente_positivi,seir2$results$I[-1]*N),col=2)
-lines(date,c(dat_csv$totale_attualmente_positivi,seir3$results$I[-1]*N),col=3)
+plot(date,c(dat_csv$totale_attualmente_positivi,seir1$I*N),type="l",ylab="Cases",xlab="time",main="Infected")
+lines(date,c(dat_csv$totale_attualmente_positivi,seir2$I*N),col=2)
+lines(date,c(dat_csv$totale_attualmente_positivi,seir3$I*N),col=3)
 lines(date[1:dim(dat_csv)[1]],dat_csv$totale_attualmente_positivi,lwd=2)
 legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
 ```
 
-![](draft_analysis_Veneto_files/figure-gfm/first%20scenario%20plot-1.png)<!-- -->
+![](draft_analysis_Veneto_files/figure-gfm/scenario%20plot-1.png)<!-- -->
 
-The 3 scenarios show how measures of restriction can help to reduce the
-number of infected.  
-At the end of the 2 weeks (2020-03-27) the number of infected is
-estimated to be (4582.9107148).  
-In the next plot the cumulative number of
-infected.
+The 3 scenarios show different numbers. If we consider the second
+scenario, at the end of the 2 weeks (2020-03-27) the number of infected
+is (3578.3982635).
+
+In the next plot the cumulative number of infected.  
+At the end of the 2 weeks (2020-03-27) the total number of COVID19 cases
+is expected to be
+(5771.1371244).
 
 ``` r
-plot(date,c(dat_csv$totale_casi,(seir1$results$I[-1]+seir1$results$R[-1])*N),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
-lines(date,c(dat_csv$totale_casi,(seir2$results$I[-1]+seir2$results$R[-1])*N),col=2)
-lines(date,c(dat_csv$totale_casi,(seir3$results$I[-1]+seir3$results$R[-1])*N),col=3)
-lines(date[1:dim(dat_csv)[1]],dat_csv$totale_casi,lwd=2)
+plot(date,c(dat_csv$totale_casi,(seir1$I+seir1$R)*N),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
+lines(date,c(dat_csv$totale_casi,(seir2$I+seir2$R)*N),col=2)
+lines(date,c(dat_csv$totale_casi,(seir3$I+seir3$R)*N),col=3)
+lines(date[1:dim(dat_csv)[1]],(dat_csv$totale_casi),lwd=2)
 legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
 ```
 
 ![](draft_analysis_Veneto_files/figure-gfm/cumulative%20plot-1.png)<!-- -->
-
-``` r
-PlotMods(seir2)
-```
-
-![](draft_analysis_Veneto_files/figure-gfm/cumulative%20plot-2.png)<!-- -->
