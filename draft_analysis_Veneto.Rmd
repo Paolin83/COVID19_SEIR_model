@@ -7,7 +7,8 @@ output: rmarkdown::github_document
 
 ## The COVID dataset
 
-The present analysis used the dataset on COVID19 updated in https://github.com/pcm-dpc/COVID-19.  
+The present analysis is based on the COVID19 dataset updated in https://github.com/pcm-dpc/COVID-19.  
+This dataset contained the time series of infected, recovered, deaths, etc...for each day after 24/02/2020.
 We used a SEIR model to predict the trend of the actual COVID19 epidemic in the Veneto Region.  
 
 
@@ -18,13 +19,14 @@ dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dat
 #we restricted the analysis to the Veneto Region
 dat_csv<-dat_csv[dat_csv$codice_regione==5,]
 dat_csv$t<-1:dim(dat_csv)[1]
-plot(dat_csv$data,dat_csv$totale_attualmente_positivi,ylab="Infected",xlab="Date")
+plot(as.Date(substr(dat_csv$data,1,10)),dat_csv$totale_attualmente_positivi,ylab=" Infected",xlab="Date",type="l")
+points(as.Date(substr(dat_csv$data,1,10)),dat_csv$totale_attualmente_positivi)
 days<-dim(dat_csv)[1]
 ```
 
 
 
-The actual status is   
+The actual time series are
 
 ```{r plots}
 library(tidyr)
@@ -49,7 +51,7 @@ We estimate the R0 parameter by means of a linear model.
 
 Y_t= a + beta * t +e_t   
 
-where $`Y_t`$ is the cumulative number of infected at the time t, while b is beta, the slope of the regression line.  
+where $`Y_t`$ is the number of infected at the time t, while b is beta, the slope of the regression line.  
 
 The slope coefficient is used to estimate R0 as in the following formula:
 
@@ -93,8 +95,7 @@ print(fp)
 ```
 
 
-The R0 shows a decreasing trend in the last period. The slope b indicates the rate of exponential increase.  
-However,  R0 is going to decrease in the next days. We use the estimated trend between R0 and time to calculate the future R0 value for the next 14 days. 
+The R0 shows a decreasing trend in the last period. We use the estimated trend between R0 and time to calculate the future R0 value for the next 14 days. 
 We predict beta (and R0) for the next 14 days assuming a Gamma distribution for the beta (the slope) forcing its value to be greater than 0. The trend was not monotonic, we use a simple splines to increase the fitting of the model to the data.
 ```{r R0 forecast}
 library(splines)
@@ -121,14 +122,14 @@ R0 passes from a value of `r round(r0.predict[1,1],2)`   in the initial phase to
 
 We want to make a short term forecast (14 days) with 3 scenario:   
 
--Scenario 1: 10 exposed people for each COVID-19 case (no restrictions made or even no effects)  
+-Scenario 1: 10 exposed people for each COVID-19 case (no home restrictions made or even no effects)  
 
 -Scenario 2: 5 exposed people for each COVID-19 case (-50% exposed people)  
 
 -Scenario 3: 3 exposed people for each COVID-19 case  (-70% exposed people)
 
 We made a forecast by means of a SEIR model fixing a series of initial status:  
-- S0=N, Italian population   
+- S0=N, the size of Veneto Region population 
 - E= f * I0 (with f a fixed factor of the previous scenario)  
 - I0: initial number of COVID-19 cases  
 - R0: initial number of recovered   
@@ -144,9 +145,9 @@ and parameters:
 I0<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I0
 # initial number of recovered
 R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
-# italian poulation
+# Veneto Region population
 N=4905854
-# duration of COVID19 
+# duration of COVID19 diseases before get recovered
 duration<-14
 #sigma0 is the coronavirus transmission rate fixed to 5%  (half of flu epidemic)
 sigma0<-0.05
@@ -192,7 +193,7 @@ plot(date,c(dat_csv$totale_attualmente_positivi,seir1$I*N),type="l",ylab="Cases"
 lines(date,c(dat_csv$totale_attualmente_positivi,seir2$I*N),col=2)
 lines(date,c(dat_csv$totale_attualmente_positivi,seir3$I*N),col=3)
 lines(date[1:dim(dat_csv)[1]],dat_csv$totale_attualmente_positivi,lwd=2)
-legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
+legend("topleft",c("first scenario - Exp=10*I","second scenario Exp=5*I","third scenario Exp=3*I"),lty=1,col=1:3)
 ```  
 
 The 3 scenarios show different numbers. 
@@ -207,7 +208,7 @@ plot(date,c(dat_csv$totale_casi,(seir1$I+seir1$R)*N),type="l",ylab="Cases",xlab=
 lines(date,c(dat_csv$totale_casi,(seir2$I+seir2$R)*N),col=2)
 lines(date,c(dat_csv$totale_casi,(seir3$I+seir3$R)*N),col=3)
 lines(date[1:dim(dat_csv)[1]],(dat_csv$totale_casi),lwd=2)
-legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
+legend("topleft",c("Scenario 1 -Exp=10*I","Scenario 2- Exp=5*I","Scenario 3- Exp=3*I"),lty=1,col=1:3)
 ```
 
 

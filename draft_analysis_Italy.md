@@ -34,10 +34,17 @@ days
 
     ## [1] 20
 
-With the aim to predict the future number of COVID19 cases on the basis
-of the actual data, we used a SEIR model applied to the COVID19 epidemic
-in Italy. A first parameter to estimate is R0, the reproduction number
-(<https://en.wikipedia.org/wiki/Basic_reproduction_number>). R0
+``` r
+plot(as.Date(substr(dat_csv$data,1,10)),dat_csv$totale_attualmente_positivi,ylab=" Infected",xlab="Date",type="l")
+points(as.Date(substr(dat_csv$data,1,10)),dat_csv$totale_attualmente_positivi)
+```
+
+![](draft_analysis_Italy_files/figure-gfm/setup-1.png)<!-- -->
+
+With the aim of predicting the future number of COVID19 cases on the
+basis of the actual data, we used a SEIR model applied to the COVID19
+epidemic in Italy. A first parameter to estimate is R0, the reproduction
+number (<https://en.wikipedia.org/wiki/Basic_reproduction_number>). R0
 indicates how contagious an infectious disease is. It is also referred
 to as “the reproduction number” of COVID19.
 
@@ -100,8 +107,8 @@ We estimate the R0 parameter by means of a linear model.
 
 Y\_t= a + beta \* t +e\_t
 
-where \(`Y_t`\) is the cumulative number of infected at the time t,
-while b is beta, the slope of the regression line.
+where \(`Y_t`\) is the number of infected at the time t, while b is
+beta, the slope of the regression line.
 
 The slope coefficient is used to estimate R0 as in the following
 formula:
@@ -160,9 +167,7 @@ print(fp)
 
 ![](draft_analysis_Italy_files/figure-gfm/R0%20trend-1.png)<!-- -->
 
-The R0 shows a decreasing trend in the last period. The slope b
-indicates the rate of exponential increase.  
-However, R0 is going to decrease in the next days. We use the estimated
+The R0 shows a decreasing trend in the last period. We use the estimated
 trend between R0 and time to calculate the future R0 value for the next
 14 days. We predict beta (and R0) for the next 14 days assuming a Gamma
 distribution for the beta (the slope) forcing its value to be greater
@@ -204,10 +209,11 @@ p
 R0 passes from a value of 3.16 in the initial phase to an estimated
 value of 1.87 at the ending of the 14-days forecast.
 
-We want to make a short term forecast (14 days) with 3 scenario:
+We want to make a short term forecast (14 days) with 3 scenario, based
+on the number of exposed people:
 
-\-Scenario 1: 10 exposed people for each COVID-19 case (no restrictions
-made or even no effects)
+\-Scenario 1: 10 exposed people for each COVID-19 case (no home
+restrictions made or even no effects)
 
 \-Scenario 2: 5 exposed people for each COVID-19 case (-50% exposed
 people)
@@ -217,7 +223,7 @@ people)
 
 We made a forecast by means of a SEIR model fixing a series of initial
 status:  
-\- S0=N, Italian population  
+\- S0=N, the size of Italian population  
 \- E= f \* I0 (with f a fixed factor of the previous scenario)  
 \- I0: initial number of COVID-19 cases  
 \- R0: initial number of recovered
@@ -296,7 +302,7 @@ plot(date,c(dat_csv$totale_attualmente_positivi,seir1$I*N),type="l",ylab="Cases"
 lines(date,c(dat_csv$totale_attualmente_positivi,seir2$I*N),col=2)
 lines(date,c(dat_csv$totale_attualmente_positivi,seir3$I*N),col=3)
 lines(date[1:dim(dat_csv)[1]],dat_csv$totale_attualmente_positivi,lwd=2)
-legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
+legend("topleft",c("first scenario - Exp=10*I","second scenario Exp=5*I","third scenario Exp=3*I"),lty=1,col=1:3)
 ```
 
 ![](draft_analysis_Italy_files/figure-gfm/scenario%20plot-1.png)<!-- -->
@@ -315,7 +321,7 @@ plot(date,c(dat_csv$totale_casi,(seir1$I+seir1$R)*N),type="l",ylab="Cases",xlab=
 lines(date,c(dat_csv$totale_casi,(seir2$I+seir2$R)*N),col=2)
 lines(date,c(dat_csv$totale_casi,(seir3$I+seir3$R)*N),col=3)
 lines(date[1:dim(dat_csv)[1]],(dat_csv$totale_casi),lwd=2)
-legend("topleft",c("first scenario","second scenario","third scenario"),lty=1,col=1:3)
+legend("topleft",c("Scenario 1 -Exp=10*I","Scenario 2 - Exp=5*I","Scenario 3- Exp=3*I"),lty=1,col=1:3)
 ```
 
 ![](draft_analysis_Italy_files/figure-gfm/cumulative%20plot-1.png)<!-- -->
