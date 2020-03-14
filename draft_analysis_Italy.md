@@ -151,7 +151,7 @@ r0.predict<-beta.predict
 r0.predict[,c(1,3:5)]<-r0.predict[,c(1,3:5)]*14
 # plot the points (actual observations), regression line, and confidence interval
 p <- ggplot(r0.predict, aes(date,beta_vec))
-p <- p + geom_point() +labs(x="time from t0",y="R0 value") 
+p <- p + geom_point() +labs(x="Date",y="R0 value") 
 p <- p + geom_line(aes(date,fit))
 p <- p + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.3)
 p
