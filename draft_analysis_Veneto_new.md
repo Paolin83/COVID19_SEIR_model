@@ -1,4 +1,5 @@
-COVID19 - Forecast and predictions using a time dependent SEIR model
+COVID19 - Forecast and predictions using a time dependent SEIR model -
+Veneto Region
 ================
 Paolo Girardi
 15 Marzo, 2020
@@ -11,20 +12,30 @@ Commons Attribution-NonCommercial 4.0 International License</a>.
 # Disclaimer
 
   - We want to investigate the evolution of the coronavirus pandemic in
-    Italy from a statistical perspective using aggregated data.
+    the Veneto Region from a statistical perspective using aggregated
+    data.
 
   - Our point of view is that of surveillance with the goal of detecting
     important changes in the underlying (random) process as soon as
     possible after it has occured.
 
-  - We use data provided by Italian Civil Protection Department
+  - We use data provided by Italian Civil Protection Department and the
+    analysis was restricted to the Veneto Rego
 
   - This document is in a draft mode, and it is continuously updated.
 
   - The layout of the draft must definitely be improved.
 
-NB: the file draft\_analysis\_italy\_html.Rmd performs the same analysis
-enabling Javascript Pictures. \#\# The COVID dataset
+\*NB: set the file output format to
+
+\#output:html\_document:  
+df\_print: paged  
+pdf\_document:  
+toc: yes
+
+which performs the same analysis enabling Javascript Pictures.
+
+## The COVID dataset
 
 The present analysis started from the dataset on COVID19 updated in
 <https://github.com/pcm-dpc/COVID-19>, database provided by the Italian
@@ -104,26 +115,29 @@ Download the data from
 
 Several outcomes can be potentially monitored, that is
 
-    ##  [1] "ricoverati_con_sintomi"      "terapia_intensiva"          
-    ##  [3] "totale_ospedalizzati"        "isolamento_domiciliare"     
-    ##  [5] "totale_attualmente_positivi" "nuovi_attualmente_positivi" 
-    ##  [7] "dimessi_guariti"             "deceduti"                   
-    ##  [9] "totale_casi"                 "tamponi"
+    ##  [1] "codice_regione"              "denominazione_regione"      
+    ##  [3] "lat"                         "long"                       
+    ##  [5] "ricoverati_con_sintomi"      "terapia_intensiva"          
+    ##  [7] "totale_ospedalizzati"        "isolamento_domiciliare"     
+    ##  [9] "totale_attualmente_positivi" "nuovi_attualmente_positivi" 
+    ## [11] "deceduti"                    "totale_casi"                
+    ## [13] "tamponi"                     "t"
 
 It is worth noting that some outcomes present negative counts in some
 regions. It looks like some of these negative counts are redesignations.
 Outcomes presenting negative values cannot be analyzed using the
 proposed model.
 
-Then we extract the timeseries.
+Then we extract the
+timeseries.
 
-![](draft_analysis_Italy_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](draft_analysis_Veneto_new_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ### The S(E)IR model (to be revised)
 
 With the aim of predicting the future number of COVID19 cases on the
 basis of the actual data, we used a SEIR model applied to the COVID19
-epidemic in Italy.
+epidemic to the Veneto Region in Italy
 
 We will consider the classical [SIR
 model](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology)
@@ -164,9 +178,10 @@ Taking logs of both sides, we get
 
 \[\log{I}(t)\;\approx\;\log{I_0}+(R_0)\,(\gamma+\mu)\,t,\] which implies
 that a semi-log plot of \(I\) vs \(t\) should be approximately linear
-with a slope proportional to \(R_0\) and the recovery rate.
+with a slope proportional to \(R_0\) and the recovery
+rate.
 
-![](draft_analysis_Italy_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](draft_analysis_Veneto_new_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 We estimate the \(R_0\) parameter in the linear model.
 
@@ -203,20 +218,21 @@ assess if the R0 trend is decreasing (how is expected to be). In this
 way, the R0 for the first and the last two days of observation is
 impossibile to estimate.
 
-![](draft_analysis_Italy_files/figure-gfm/R0%20trend-1.png)<!-- -->
+![](draft_analysis_Veneto_new_files/figure-gfm/R0%20trend-1.png)<!-- -->
 
 The R0 shows a decreasing trend in the last period. We use the estimated
 trend between R0 and time to calculate the future R0 value for the next
 14 days. We predict beta (and R0) for the next 14 days by means of a
 linear regressione model, assuming a Log-normal distribution for the
-beta (the slope) and forcing its value to be greater than 0.
+beta (the slope) and forcing its value to be greater than
+0.
 
     ## Warning: Removed 18 rows containing missing values (geom_point).
 
-![](draft_analysis_Italy_files/figure-gfm/R0%20forecast-1.png)<!-- -->
+![](draft_analysis_Veneto_new_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
-R0 passes from a value of 4.57 in the initial phase to an estimated
-value of 1.29 at the ending of the 14-days forecast.
+R0 passes from a value of 5.64 in the initial phase to an estimated
+value of 1.23 at the ending of the 14-days forecast.
 
 We want to make a short term forecast (14 days) with 3 scenario, based
 on the number of exposed people:
@@ -232,7 +248,7 @@ people)
 
 We made a forecast by means of a SEIR model fixing a series of initial
 status:  
-\- S0=N, the size of Italian population  
+\- S0=N, the size of Veneto Region population  
 \- E= f \* I0 (with f a fixed factor of the previous scenario)  
 \- I0: initial number of COVID-19 cases  
 \- R0: initial number of recovered
@@ -249,18 +265,18 @@ the previous estimation
 I0<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I0
 ```
 
-    ## [1] 20603
+    ## [1] 1989
 
 ``` r
 # initial number of recovered
 R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
 ```
 
-    ## [1] 2335
+    ## [1] 120
 
 ``` r
-# italian poulation
-N=60480000
+# Veneto Region population
+N=4905854
 # duration of COVID19 
 duration<-14
 #sigma0 is the coronavirus transmission rate fixed to 5%  (half of flu epidemic)
@@ -281,7 +297,7 @@ Respect to the previous formulation, the compartment of exposed people
 
 We perfom simulation on the trend of beta coefficient by means of a
 Bayesian Structural Time Series using the library bsts of R.  
-We estimate a BTST model specifing a local linear trend ans 1000
+We estimate a BSTS model specifing a local linear trend ans 1000
 simulation.
 
 We made a forecast forward of 14 days dropping the first 100 simulation
@@ -295,23 +311,23 @@ model1 <- bsts(log(beta_vec),
                niter = 1000)
 ```
 
-    ## =-=-=-=-= Iteration 0 Sun Mar 15 23:02:37 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Sun Mar 15 23:02:37 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Sun Mar 15 23:02:37 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Sun Mar 15 23:02:37 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Sun Mar 15 23:02:38 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Sun Mar 15 23:02:38 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Sun Mar 15 23:02:38 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Sun Mar 15 23:02:38 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Sun Mar 15 23:02:38 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Sun Mar 15 23:02:38 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Sun Mar 15 23:58:29 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Sun Mar 15 23:58:29 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Sun Mar 15 23:58:29 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Sun Mar 15 23:58:29 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Sun Mar 15 23:58:29 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Sun Mar 15 23:58:29 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Sun Mar 15 23:58:29 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Sun Mar 15 23:58:29 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Sun Mar 15 23:58:29 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Sun Mar 15 23:58:29 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
 plot(model1, "components", ylab="Log beta coefficient", xlab="days")
 ```
 
-![](draft_analysis_Italy_files/figure-gfm/bsts%20model%20fit%20and%20prediction-1.png)<!-- -->
+![](draft_analysis_Veneto_new_files/figure-gfm/bsts%20model%20fit%20and%20prediction-1.png)<!-- -->
 
 ``` r
 #previsioni
@@ -320,7 +336,7 @@ par(mfrow = c(1,1))
 plot(pred1 , ylab="Log beta coefficient",main="Data and predictions")
 ```
 
-![](draft_analysis_Italy_files/figure-gfm/bsts%20model%20fit%20and%20prediction-2.png)<!-- -->
+![](draft_analysis_Veneto_new_files/figure-gfm/bsts%20model%20fit%20and%20prediction-2.png)<!-- -->
 
 ``` r
 # matrix of beta coefficients
@@ -342,7 +358,7 @@ for(s in 1:dim(coef)[1]){
   forecast<-14
   seir1<-seir2<-seir3<-NULL
   for(i in 1:forecast){
-    parameters <- c(mu = mu0, beta = matrix(coef[s,14]), sigma = sigma0, gamma = 1/duration)
+    parameters <- c(mu = mu0, beta = matrix(coef[s,i]), sigma = sigma0, gamma = 1/duration)
     f1<-10
     if( i==1) initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
     if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
@@ -379,12 +395,12 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Italy: Scenario 1 Credible (confidence ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 1 (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
 
-![](draft_analysis_Italy_files/figure-gfm/scenario%20plot%20-1.png)<!-- -->
+![](draft_analysis_Veneto_new_files/figure-gfm/scenario%20plot%20-1.png)<!-- -->
 
 ``` r
 ### confidence limits - scenario 2
@@ -397,12 +413,12 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Italy: Scenario 2 Credible (confidence ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 2  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
 
-![](draft_analysis_Italy_files/figure-gfm/scenario%20plot%20-2.png)<!-- -->
+![](draft_analysis_Veneto_new_files/figure-gfm/scenario%20plot%20-2.png)<!-- -->
 
 ``` r
 ### confidence limits - scenario 3
@@ -416,17 +432,17 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Italy: Scenario 3 Credible (confidence ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 3  (Credible Interval ",100*50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
 
-![](draft_analysis_Italy_files/figure-gfm/scenario%20plot%20-3.png)<!-- -->
+![](draft_analysis_Veneto_new_files/figure-gfm/scenario%20plot%20-3.png)<!-- -->
 
 The 3 scenarios show different numbers. If we consider the second
 scenario, at the end of the 2 weeks (2020-03-29) the number of infected
-is (4.577783410^{4}).
+is (4856.4957641).
 
 In the next plot the cumulative number of infected.  
 At the end of the 2 weeks (2020-03-29) the total number of COVID19 cases
-is expected to be (8.456748510^{4}).
+is expected to be (8652.6221879).

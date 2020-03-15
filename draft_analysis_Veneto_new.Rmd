@@ -1,5 +1,5 @@
 ---
-title: "COVID19 - Forecast and predictions using a time dependent SEIR model"
+title: "COVID19 - Forecast and predictions using a time dependent SEIR model - Veneto Region"
 author: "Paolo Girardi"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: rmarkdown::github_document
@@ -15,15 +15,24 @@ knitr::opts_chunk$set(error = FALSE)
 
 # Disclaimer
 
-* We want to investigate the evolution of the coronavirus pandemic in Italy from a statistical perspective using aggregated data.
+* We want to investigate the evolution of the coronavirus pandemic in the Veneto Region from a statistical perspective using aggregated data.
 
 * Our point of view is that of surveillance with the goal of detecting important changes in the underlying (random) process as soon as possible after it has occured.
 
-* We use data provided by  Italian Civil Protection Department 
+* We use data provided by  Italian Civil Protection Department and the analysis was restricted to the Veneto Rego
 
 * This document is in a draft mode, and it is continuously updated.
 
-* The layout of the draft must definitely be improved.
+* The layout of the draft must definitely be improved.   
+
+*NB: set the file output format to   
+
+#output:html_document:  
+  df_print: paged  
+pdf_document:   
+  toc: yes    
+  
+which  performs the same analysis enabling Javascript Pictures.  
 
 ## The COVID dataset
 
@@ -48,6 +57,8 @@ checkpackage("dygraphs")
 checkpackage("xts")
 checkpackage("EpiDynamics")
 checkpackage("webshot")
+checkpackage("bsts")
+checkpackage("ggplot2")
 ```
 and load them.
 ```{r, warning=FALSE}
@@ -55,7 +66,9 @@ library(dygraphs)
 library(xts)
 library(EpiDynamics)
 library(webshot)
-install_phantomjs()
+library(bsts)
+library(EpiDynamics)
+library(ggplot2)
 ```
 
 # Source of the data 
@@ -72,15 +85,15 @@ https://github.com/pcm-dpc/COVID-19/
   
 ## Load dataset
 ```{r}
-
 rm(list=ls())
-###import italian dataset updated 13 March 2020
-  dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-andamento-nazionale/dpc-covid19-ita-andamento-nazionale.csv",header=T)
+###import italian updated dataset 
+dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-regioni/dpc-covid19-ita-regioni.csv",header=T)
+#we restricted the analysis to the Veneto Region
+dat_csv<-dat_csv[dat_csv$codice_regione==5,]
 days<-dim(dat_csv)[1]
 dat_csv$t<-1:days
 # The total number of epidemic day is
 days
-
 ```
 Several outcomes can be potentially monitored, that is
 
@@ -98,11 +111,11 @@ Then we extract the timeseries.
 myDateTimeStr1 <- dat_csv$data
 myPOSIXct1 <- as.POSIXct(myDateTimeStr1, format="%Y-%m-%d %H:%M:%S")
 days_dy<-as.Date(myPOSIXct1)
-dat_csv_dy<-xts(dat_csv[,-(1:2)], order.by = days_dy, frequency = 7)
+dat_csv_dy<-xts(dat_csv[,-c(1:7,16:17)], order.by = days_dy, frequency = 7)
 ```
 
 ```{r}
-p <- dygraph(dat_csv_dy,main=paste("Italy",sep =""),xlab="Day",height=400,width=800) 
+p <- dygraph(dat_csv_dy,main=paste("Veneto Region",sep =""),xlab="Day",height=400,width=800) 
 p
 ```
 
@@ -110,7 +123,7 @@ p
 
 With the aim of predicting the future number of COVID19 cases on the
 basis of the actual data, we used a SEIR model applied to the COVID19
-epidemic in Italy.
+epidemic to the Veneto Region in Italy
 
 We will consider  the classical [SIR model](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology) [@Kermack1927].
 
@@ -149,7 +162,7 @@ which implies that a semi-log plot of $I$ vs $t$ should be approximately linear 
 
 ```{r}
 dat_csv_dy$log_totale_attualmente_positivi<-log(dat_csv_dy$totale_attualmente_positivi)
-p <- dygraph(dat_csv_dy$log_totale_attualmente_positivi,main=paste("Italy"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
+p <- dygraph(dat_csv_dy$log_totale_attualmente_positivi,main=paste("Veneto Region"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
 p
 ```
 
@@ -173,7 +186,7 @@ In the calculation we considered an "incubation period" of 14 days for two reaso
 1) the majority of cases is asymptomatic, contagiousness is greater than 5, maybe 14. A minority (who made the swab) will have a duration of about 5 days between the start of contagiousness and swab; 
 2) 14 days is the worst scenario because in this period low impact COVID19 symptoms can be confused with the concomitant FLU epidemic (https://www.webmd.com/lung/news/20200310/know-the-symptoms-of-covid19).  
 
-We calculate several R0 values, each one based on a mobile window of 5 days, that can be sufficient to estimate a local trend, in order to assess if the R0 trend is decreasing (how is expected to be).
+We calculate several R0 values, each one based on a mobile window of 5 days, that can be sufficient to estimate a local trend, in order to assess if the R0 trend is decreasing (how is expected to be). In this way, the R0 for the first and the last two days of observation is impossibile to estimate.
 
 ```{r R0 trend}
 #calculate r0 based with a mobile window of 5 days
@@ -196,7 +209,7 @@ upper <- ((beta_vec+1.96*sd_vec)*14)
 
 df <- data.frame(label, mean, lower, upper)
 
-library(ggplot2)
+
 fp <- ggplot(data=df, aes(x=label, y=mean, ymin=lower, ymax=upper)) +
   geom_pointrange() +
   geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
@@ -208,7 +221,7 @@ print(fp)
 ```
 
 The R0 shows a decreasing trend in the last period. We use the estimated trend between R0 and time to calculate the future R0 value for the next 14 days. 
-We predict beta (and R0) for the next 14 days by means of a linear regressione model, assuming a Log-normal distribution for the beta (the slope) forcing its value to be greater than 0.
+We predict beta (and R0) for the next 14 days by means of a linear regressione model, assuming a Log-normal distribution for the beta (the slope) and forcing its value to be greater than 0.
 ```{r R0 forecast}
 
 time<-3:(days-2)
@@ -241,7 +254,7 @@ We want to make a short term forecast (14 days) with 3 scenario, based on the nu
 -Scenario 3: 3 exposed people for each COVID-19 case  (-70% exposed people)
 
 We made a forecast by means of a SEIR model fixing a series of initial status:  
-- S0=N, the size of Italian population   
+- S0=N, the size of Veneto Region population   
 - E= f * I0 (with f a fixed factor of the previous scenario)  
 - I0: initial number of COVID-19 cases  
 - R0: initial number of recovered   
@@ -257,8 +270,8 @@ and parameters:
 I0<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I0
 # initial number of recovered
 R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
-# italian poulation
-N=60480000
+# Veneto Region population
+N=4905854
 # duration of COVID19 
 duration<-14
 #sigma0 is the coronavirus transmission rate fixed to 5%  (half of flu epidemic)
@@ -270,64 +283,116 @@ We use the library(EpiDynamics) and the function SEIR() to implement a SEIR mode
 
 <img src="http://www.public.asu.edu/~hnesse/classes/seireqn.png"/>  
 <img src="https://upload.wikimedia.org/wikipedia/commons/3/3d/SEIR.PNG"/>  
+Respect to the previous formulation, the compartment of exposed people (E) was inserted between the susceptible and infected compartments.  
+(https://en.wikipedia.org/wiki/Bayesian_structural_time_series)  
 
+We perfom simulation on the trend of beta coefficient by means of a Bayesian Structural Time Series using the library bsts of R.    
+We estimate a BSTS model specifing a local linear trend ans 1000 simulation.  
 
-where the parameter beta here is time dependent, as estimated before by the gamma regression model.
-```{r  scenario plot, echo=TRUE}
-library(EpiDynamics)
+We made a forecast forward of 14 days dropping the first 100 simulation as burn-in.   
 
-# average number of single connections of an infected person
-# less contacts, less probability of new infections
-# we keep constant the other parameters
-forecast<-14
-seir1<-seir2<-seir3<-NULL
-for(i in 1:forecast){
-parameters <- c(mu = mu0, beta = beta.predict$fit[days+i], sigma = sigma0, gamma = 1/duration)
-f1<-10
-if( i==1) initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
-if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
-seir1_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
-seir1 <- rbind(seir1,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
-f2<-5
-if( i==1) initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
-if( i>1) initials <- c(S = seir2_temp$results$S[2], E = seir2_temp$results$E[2], I =seir2_temp$results$I[2], R = seir2_temp$results$R[2])
-seir2_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
-seir2 <- rbind(seir2,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
-f3<-3
-if( i==1) initials <- c(S = 0.95, E = (f3*I0/N), I = I0/N, R = R0/N)
-if( i>1) initials <- c(S = seir3_temp$results$S[2], E = seir3_temp$results$E[2], I =seir3_temp$results$I[2], R = seir3_temp$results$R[2])
-seir3_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
-seir3 <- rbind(seir3,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
+```{r bsts model fit and prediction, echo=TRUE}
+# Bayesian Structural Time Series
+ss <- AddLocalLinearTrend(list(), log(beta_vec))
+model1 <- bsts(log(beta_vec),
+               state.specification = ss,
+               niter = 1000)
+par(mfrow = c(1,1))
+plot(model1, "components", ylab="Log beta coefficient", xlab="days")
+#previsioni
+pred1 <- predict(model1, horizon = 16, burn = 100)
+par(mfrow = c(1,1))
+plot(pred1 , ylab="Log beta coefficient",main="Data and predictions")
+# matrix of beta coefficients
+coef<-(exp(pred1$distribution)[,3:16])
+par(mfrow = c(1,1))
+```
+For each vectors of simulated beta coefficients we perform a SEIR model (one for each scenario).  
+We save the results and plot a credible interval at 50% (25-75% percentile).
+
+```{r  scenario plot , echo=TRUE}
+
+seir1_sim<-seir2_sim<-seir3_sim<-NULL
+for(s in 1:dim(coef)[1]){
+  # average number of single connections of an infected person
+  # less contacts, less probability of new infections
+  # we keep constant the other parameters
+  forecast<-14
+  seir1<-seir2<-seir3<-NULL
+  for(i in 1:forecast){
+    parameters <- c(mu = mu0, beta = matrix(coef[s,i]), sigma = sigma0, gamma = 1/duration)
+    f1<-10
+    if( i==1) initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
+    if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
+    seir1_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
+    seir1 <- rbind(seir1,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
+    f2<-5
+    if( i==1) initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
+    if( i>1) initials <- c(S = seir2_temp$results$S[2], E = seir2_temp$results$E[2], I =seir2_temp$results$I[2], R = seir2_temp$results$R[2])
+    seir2_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
+    seir2 <- rbind(seir2,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
+    f3<-3
+    if( i==1) initials <- c(S = 0.95, E = (f3*I0/N), I = I0/N, R = R0/N)
+    if( i>1) initials <- c(S = seir3_temp$results$S[2], E = seir3_temp$results$E[2], I =seir3_temp$results$I[2], R = seir3_temp$results$R[2])
+    seir3_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
+    seir3 <- rbind(seir3,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
+  }
+  seir1_sim<-rbind(seir1_sim,cbind(rep(s,forecast),seir1))
+  seir2_sim<-rbind(seir2_sim,cbind(rep(s,forecast),seir2))
+  seir3_sim<-rbind(seir3_sim,cbind(rep(s,forecast),seir3))
 }
+seir1_sim[,2]<-seir2_sim[,2]<-seir3_sim[,2]<-rep(1:forecast,dim(coef)[1])
+colnames(seir1_sim)[1]<-colnames(seir2_sim)[1]<-colnames(seir3_sim)[1]<-"sim"
 
-date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast-1+dim(dat_csv)[1],1)
-plot(date,c(dat_csv$totale_attualmente_positivi,seir1$I*N),type="l",ylab="Cases",xlab="time",main="Infected")
-lines(date,c(dat_csv$totale_attualmente_positivi,seir2$I*N),col=2)
-lines(date,c(dat_csv$totale_attualmente_positivi,seir3$I*N),col=3)
-lines(date[1:dim(dat_csv)[1]],dat_csv$totale_attualmente_positivi,lwd=2)
-legend("topleft",c("first scenario - Exp=10*I","second scenario Exp=5*I","third scenario Exp=3*I"),lty=1,col=1:3)
-```  
+### confidence limits
+I_seir_med<-tapply(seir1_sim$I,seir1_sim$time,median)
+I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.25)
+I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.75)
+
+days.before<-date[1:days]
+days.ahead<-date[(days+1):(days+forecast)]
+step.ahead<-forecast+1
+mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
+mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
+mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
+counts<-mu.med
+mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 1 (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
+p
+
+### confidence limits - scenario 2
+I_seir_med<-tapply(seir2_sim$I,seir2_sim$time,median)
+I_seir_lwr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.25)
+I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.75)
+
+mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
+mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
+mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
+counts<-mu.med
+mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 2  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
+p
+
+### confidence limits - scenario 3
+I_seir_med<-tapply(seir3_sim$I,seir3_sim$time,median)
+I_seir_lwr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=0.25)
+I_seir_upr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=0.75)
+
+
+mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
+mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
+mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
+counts<-mu.med
+mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 3  (Credible Interval ",100*50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
+p
+```
 
 The 3 scenarios show different numbers. 
-If we consider the second scenario, at the end of the 2 weeks (`r date[length(date)]`) the number of infected is  (`r (seir2$I*N)[length(seir2$I)]`).  
+If we consider the second scenario, at the end of the 2 weeks (`r date[length(date)]`) the number of infected is  (`r (tapply(seir2_sim$I,seir2_sim$time,median)*N)[forecast]`).  
 
 In the next plot the cumulative number of infected.  
-At the end of the 2 weeks (`r date[length(date)]`) the total number of COVID19 cases is expected to be  (`r ((seir2$I+seir3$R)*N)[length(seir2$I)]`).  
-
-```{r  cumulative plot, echo=TRUE}
-
-plot(date,c(dat_csv$totale_casi,(seir1$I+seir1$R)*N),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
-lines(date,c(dat_csv$totale_casi,(seir2$I+seir2$R)*N),col=2)
-lines(date,c(dat_csv$totale_casi,(seir3$I+seir3$R)*N),col=3)
-lines(date[1:dim(dat_csv)[1]],(dat_csv$totale_casi),lwd=2)
-legend("topleft",c("Scenario 1 -Exp=10*I","Scenario 2 - Exp=5*I","Scenario 3- Exp=3*I"),lty=1,col=1:3)
-```
-
-```{r  forecast plot, echo=TRUE}
-
-plot(date[(days+1):(days+forecast)],seir2$E*N,type="l",ylab="Cases",xlab="Date",main="14 days - Forecast Scenario 2",ylim=c(0,max(seir2$E*N,seir2$I*N,seir2$R*N )))
-lines(date[(days+1):(days+forecast)],seir2$I*N,col=2)
-lines(date[(days+1):(days+forecast)],seir2$R*N,col=3)
-legend("topleft",c("Exposed","Infected","Recovered"),lty=1,col=1:4)
-```
-
+At the end of the 2 weeks (`r date[length(date)]`) the total number of COVID19 cases is expected to be  (`r (tapply(seir2_sim$I,seir2_sim$time,median)*N+tapply(seir2_sim$R,seir2_sim$time,median)*N)[forecast]`).  

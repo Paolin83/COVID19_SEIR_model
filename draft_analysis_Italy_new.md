@@ -115,9 +115,10 @@ regions. It looks like some of these negative counts are redesignations.
 Outcomes presenting negative values cannot be analyzed using the
 proposed model.
 
-Then we extract the timeseries.
+Then we extract the
+timeseries.
 
-![](draft_analysis_Italy_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](draft_analysis_Italy_new_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ### The S(E)IR model (to be revised)
 
@@ -164,9 +165,10 @@ Taking logs of both sides, we get
 
 \[\log{I}(t)\;\approx\;\log{I_0}+(R_0)\,(\gamma+\mu)\,t,\] which implies
 that a semi-log plot of \(I\) vs \(t\) should be approximately linear
-with a slope proportional to \(R_0\) and the recovery rate.
+with a slope proportional to \(R_0\) and the recovery
+rate.
 
-![](draft_analysis_Italy_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](draft_analysis_Italy_new_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 We estimate the \(R_0\) parameter in the linear model.
 
@@ -203,17 +205,18 @@ assess if the R0 trend is decreasing (how is expected to be). In this
 way, the R0 for the first and the last two days of observation is
 impossibile to estimate.
 
-![](draft_analysis_Italy_files/figure-gfm/R0%20trend-1.png)<!-- -->
+![](draft_analysis_Italy_new_files/figure-gfm/R0%20trend-1.png)<!-- -->
 
 The R0 shows a decreasing trend in the last period. We use the estimated
 trend between R0 and time to calculate the future R0 value for the next
 14 days. We predict beta (and R0) for the next 14 days by means of a
 linear regressione model, assuming a Log-normal distribution for the
-beta (the slope) and forcing its value to be greater than 0.
+beta (the slope) and forcing its value to be greater than
+0.
 
     ## Warning: Removed 18 rows containing missing values (geom_point).
 
-![](draft_analysis_Italy_files/figure-gfm/R0%20forecast-1.png)<!-- -->
+![](draft_analysis_Italy_new_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
 R0 passes from a value of 4.57 in the initial phase to an estimated
 value of 1.29 at the ending of the 14-days forecast.
@@ -281,7 +284,7 @@ Respect to the previous formulation, the compartment of exposed people
 
 We perfom simulation on the trend of beta coefficient by means of a
 Bayesian Structural Time Series using the library bsts of R.  
-We estimate a BTST model specifing a local linear trend ans 1000
+We estimate a BSTS model specifing a local linear trend ans 1000
 simulation.
 
 We made a forecast forward of 14 days dropping the first 100 simulation
@@ -289,29 +292,30 @@ as burn-in.
 
 ``` r
 # Bayesian Structural Time Series
+set.seed(123)
 ss <- AddLocalLinearTrend(list(), log(beta_vec))
 model1 <- bsts(log(beta_vec),
                state.specification = ss,
                niter = 1000)
 ```
 
-    ## =-=-=-=-= Iteration 0 Sun Mar 15 23:02:37 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Sun Mar 15 23:02:37 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Sun Mar 15 23:02:37 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Sun Mar 15 23:02:37 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Sun Mar 15 23:02:38 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Sun Mar 15 23:02:38 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Sun Mar 15 23:02:38 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Sun Mar 15 23:02:38 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Sun Mar 15 23:02:38 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Sun Mar 15 23:02:38 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Sun Mar 15 23:52:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Sun Mar 15 23:52:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Sun Mar 15 23:52:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Sun Mar 15 23:52:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Sun Mar 15 23:52:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Sun Mar 15 23:52:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Sun Mar 15 23:52:58 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Sun Mar 15 23:52:58 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Sun Mar 15 23:52:58 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Sun Mar 15 23:52:58 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
 plot(model1, "components", ylab="Log beta coefficient", xlab="days")
 ```
 
-![](draft_analysis_Italy_files/figure-gfm/bsts%20model%20fit%20and%20prediction-1.png)<!-- -->
+![](draft_analysis_Italy_new_files/figure-gfm/bsts%20model%20fit%20and%20prediction-1.png)<!-- -->
 
 ``` r
 #previsioni
@@ -320,7 +324,7 @@ par(mfrow = c(1,1))
 plot(pred1 , ylab="Log beta coefficient",main="Data and predictions")
 ```
 
-![](draft_analysis_Italy_files/figure-gfm/bsts%20model%20fit%20and%20prediction-2.png)<!-- -->
+![](draft_analysis_Italy_new_files/figure-gfm/bsts%20model%20fit%20and%20prediction-2.png)<!-- -->
 
 ``` r
 # matrix of beta coefficients
@@ -330,7 +334,7 @@ par(mfrow = c(1,1))
 
 For each vectors of simulated beta coefficients we perform a SEIR model
 (one for each scenario).  
-We save the results and plot a credible interval at 50% (25-75%
+We save the results and plot a credible interval at 90% (5-95%
 percentile).
 
 ``` r
@@ -342,7 +346,7 @@ for(s in 1:dim(coef)[1]){
   forecast<-14
   seir1<-seir2<-seir3<-NULL
   for(i in 1:forecast){
-    parameters <- c(mu = mu0, beta = matrix(coef[s,14]), sigma = sigma0, gamma = 1/duration)
+    parameters <- c(mu = mu0, beta = matrix(coef[s,i]), sigma = sigma0, gamma = 1/duration)
     f1<-10
     if( i==1) initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
     if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
@@ -368,8 +372,10 @@ colnames(seir1_sim)[1]<-colnames(seir2_sim)[1]<-colnames(seir3_sim)[1]<-"sim"
 
 ### confidence limits
 I_seir_med<-tapply(seir1_sim$I,seir1_sim$time,median)
-I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.25)
-I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.75)
+limits<-c(0.05,0.95)
+confidence<-diff(limits)
+I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=limits[1])
+I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=limits[2])
 
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
@@ -379,36 +385,36 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Italy: Scenario 1 Credible (confidence ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Italy: Scenario 1 (Credible Interval ",100*confidence,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
 
-![](draft_analysis_Italy_files/figure-gfm/scenario%20plot%20-1.png)<!-- -->
+![](draft_analysis_Italy_new_files/figure-gfm/scenario%20plot%20-1.png)<!-- -->
 
 ``` r
 ### confidence limits - scenario 2
 I_seir_med<-tapply(seir2_sim$I,seir2_sim$time,median)
-I_seir_lwr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.25)
-I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.75)
+I_seir_lwr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=limits[1])
+I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=limits[2])
 
 mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
 mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Italy: Scenario 2 Credible (confidence ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Italy: Scenario 2 (Credible Interval ",100*confidence,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
 
-![](draft_analysis_Italy_files/figure-gfm/scenario%20plot%20-2.png)<!-- -->
+![](draft_analysis_Italy_new_files/figure-gfm/scenario%20plot%20-2.png)<!-- -->
 
 ``` r
 ### confidence limits - scenario 3
 I_seir_med<-tapply(seir3_sim$I,seir3_sim$time,median)
-I_seir_lwr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=0.25)
-I_seir_upr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=0.75)
+I_seir_lwr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=limits[1])
+I_seir_upr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=limits[2])
 
 
 mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
@@ -416,17 +422,17 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Italy: Scenario 3 Credible (confidence ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Italy: Scenario 3 (Credible Interval ",100*confidence,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
 
-![](draft_analysis_Italy_files/figure-gfm/scenario%20plot%20-3.png)<!-- -->
+![](draft_analysis_Italy_new_files/figure-gfm/scenario%20plot%20-3.png)<!-- -->
 
 The 3 scenarios show different numbers. If we consider the second
 scenario, at the end of the 2 weeks (2020-03-29) the number of infected
-is (4.577783410^{4}).
+is (5.068197310^{4}).
 
 In the next plot the cumulative number of infected.  
 At the end of the 2 weeks (2020-03-29) the total number of COVID19 cases
-is expected to be (8.456748510^{4}).
+is expected to be (9.142799910^{4}).
