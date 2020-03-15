@@ -1,7 +1,27 @@
 COVID19 - Forecast and predictions using a time dependent SEIR model
 ================
-PG
-3/13/2020
+Paolo Girardi
+15 Marzo, 2020
+
+<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
+work is licensed under a
+<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative
+Commons Attribution-NonCommercial 4.0 International License</a>.
+
+# Disclaimer
+
+  - We want to investigate the evolution of the coronavirus pandemic in
+    Italy from a statistical perspective using aggregated data.
+
+  - Our point of view is that of surveillance with the goal of detecting
+    important changes in the underlying (random) process as soon as
+    possible after it has occured.
+
+  - We use data provided by Italian Civil Protection Department
+
+  - This document is in a draft mode, and it is continuously updated.
+
+  - The layout of the draft must definitely be improved.
 
 ## The COVID dataset
 
@@ -9,62 +29,30 @@ The present analysis started from the dataset on COVID19 updated in
 <https://github.com/pcm-dpc/COVID-19>, database provided by the Italian
 Civil Protection.
 
-``` r
-rm(list=ls())
-###import italian dataset updated 13 March 2020
-  dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-andamento-nazionale/dpc-covid19-ita-andamento-nazionale.csv",header=T)
-days<-dim(dat_csv)[1]
-dat_csv$t<-1:days
-#database contains  the following variables
-names(dat_csv)
-```
+# Software
 
-    ##  [1] "data"                        "stato"                      
-    ##  [3] "ricoverati_con_sintomi"      "terapia_intensiva"          
-    ##  [5] "totale_ospedalizzati"        "isolamento_domiciliare"     
-    ##  [7] "totale_attualmente_positivi" "nuovi_attualmente_positivi" 
-    ##  [9] "dimessi_guariti"             "deceduti"                   
-    ## [11] "totale_casi"                 "tamponi"                    
-    ## [13] "t"
+Install packages `dygraphs`, `xts` and `EpiDynamics` if not available
 
 ``` r
-# The total number of epidemic day is
-days
+checkpackage <- function(package) {
+  if (!package %in% installed.packages()) install.packages(package)
+}
+checkpackage("dygraphs")
+checkpackage("xts")
+checkpackage("EpiDynamics")
+checkpackage("webshot")
 ```
 
-    ## [1] 20
+and load them.
 
-With the aim of predicting the future number of COVID19 cases on the
-basis of the actual data, we used a SEIR model applied to the COVID19
-epidemic in Italy. A first parameter to estimate is R0, the reproduction
-number (<https://en.wikipedia.org/wiki/Basic_reproduction_number>). R0
-indicates how contagious an infectious disease is. It is also referred
-to as “the reproduction number” of COVID19.
-
-The R0 value has been estimated by means of a linear regression model as
-reported in <https://kingaa.github.io/clim-dis/parest/parest.html>.
-
-The following plot presented the actual status.
-
-``` r
-library(tidyr)
-library(dplyr)
-```
+    ## Loading required package: zoo
 
     ## 
-    ## Attaching package: 'dplyr'
-
-    ## The following objects are masked from 'package:stats':
-    ## 
-    ##     filter, lag
+    ## Attaching package: 'zoo'
 
     ## The following objects are masked from 'package:base':
     ## 
-    ##     intersect, setdiff, setequal, union
-
-``` r
-library(ggplot2)
-```
+    ##     as.Date, as.Date.numeric
 
     ## Registered S3 methods overwritten by 'ggplot2':
     ##   method         from 
@@ -72,44 +60,102 @@ library(ggplot2)
     ##   c.quosures     rlang
     ##   print.quosures rlang
 
-``` r
-df <- dat_csv %>%
-  select(data, ricoverati_con_sintomi, terapia_intensiva, 
-         totale_ospedalizzati, isolamento_domiciliare, 
-         totale_attualmente_positivi, nuovi_attualmente_positivi, 
-         dimessi_guariti, deceduti, totale_casi) %>%
-  gather(key = "variable", value = "value", -data)
-head(df, 3)
-```
+    ## phantomjs has been installed to /Users/Paolo/Library/Application Support/PhantomJS
 
-    ##                  data               variable value
-    ## 1 2020-02-24 18:00:00 ricoverati_con_sintomi   101
-    ## 2 2020-02-25 18:00:00 ricoverati_con_sintomi   114
-    ## 3 2020-02-26 18:00:00 ricoverati_con_sintomi   128
+# Source of the data
 
-``` r
-ggplot(df, aes(x = as.Date(data), y = value)) + 
-  geom_line(aes(color = variable), size = 1) 
-```
+Download the data from
 
-![](draft_analysis_Italy_files/figure-gfm/plots-1.png)<!-- -->
+<https://github.com/pcm-dpc/COVID-19/>
 
-The plot shows an exponential grow of cases.\\
+# Results
 
-We estimate the R0 parameter by means of a linear model.
+## Load dataset
 
-Y\_t= a + beta \* t +e\_t
+    ## [1] 21
 
-where \(`Y_t`\) is the number of infected at the time t, while b is
-beta, the slope of the regression line.
+Several outcomes can be potentially monitored, that is
 
-The slope coefficient is used to estimate R0 as in the following
-formula:
+    ##  [1] "ricoverati_con_sintomi"      "terapia_intensiva"          
+    ##  [3] "totale_ospedalizzati"        "isolamento_domiciliare"     
+    ##  [5] "totale_attualmente_positivi" "nuovi_attualmente_positivi" 
+    ##  [7] "dimessi_guariti"             "deceduti"                   
+    ##  [9] "totale_casi"                 "tamponi"
 
-R0=beta\*incubation period.
+It is worth noting that some outcomes present negative counts in some
+regions. It looks like some of these negative counts are redesignations.
+Outcomes presenting negative values cannot be analyzed using the
+proposed model.
 
-The incubation period for the coronavirus is in mean 5.1 days with a
-range from 2-14 days. Please see
+Then we extract the timeseries.
+
+![](draft_analysis_Italy_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+### The S(E)IR model (to be revised)
+
+With the aim of predicting the future number of COVID19 cases on the
+basis of the actual data, we used a SEIR model applied to the COVID19
+epidemic in Italy.
+
+We will consider the classical [SIR
+model](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology)
+\[@Kermack1927\].
+
+The model divides a population of hosts into three classes: susceptible,
+infected, recovered. The model describes how the portion of the
+population in each of these classes changes with time. Births are
+modeled as flows from “elsewhere” into the susceptible class; deaths are
+modeled as flows from the \(S\), \(I\), or \(R\) compartment into
+“elsewhere”. If \(S\), \(I\), and \(R\) refer to the numbers of
+individuals in each compartment, then these **state variables** change
+according to the following system of differential equations:
+\[\begin{aligned}
+\frac{d}{dt}S(t) &= B(t)-\lambda\,S(t)-\mu\,S(t)\\
+\frac{d}{dt}I(t) &= \lambda\,S(t)-\gamma\,I(t)-\mu\,I(t)\\
+\frac{d}{dt}R(t) &= \gamma\,I(t)-\mu\,R(t).\\
+\end{aligned}\] Here, \(B\) is the crude birth rate (births per unit
+time), \(\mu\) is the death rate and \(\gamma\) is the recovery rate.
+We’ll assume that the force of infection, \(\lambda\), for a constant
+population \(N\) \[\lambda = \beta\,\frac{I}{N},\] so that the risk of
+infection a susceptible faces is proportional to the *prevalence* (the
+fraction of the population that is infected). This is known as the
+assumption of frequency-dependent transmission.
+
+# The reproduction number of COVID19.
+
+The number of infected individuals \(I\) at time \(t\) is approximately
+\[I(t)\;\approx\;I_0\,e^{R_0\,(\gamma+\mu)\,t}\] where \(I_0\) is the
+(small) number of infectives at time \(0\), \(\frac{1}{\gamma}\) is the
+infectious period, and \(\frac{1}{\mu}\) is the host lifespan.
+
+\(R_0\) is the reproduction number
+(<https://en.wikipedia.org/wiki/Basic_reproduction_number>) and
+indicates how contagious an infectious disease is.
+
+Taking logs of both sides, we get
+
+\[\log{I}(t)\;\approx\;\log{I_0}+(R_0)\,(\gamma+\mu)\,t,\] which implies
+that a semi-log plot of \(I\) vs \(t\) should be approximately linear
+with a slope proportional to \(R_0\) and the recovery rate.
+
+![](draft_analysis_Italy_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+We estimate the \(R_0\) parameter in the linear model.
+
+\[
+\log(I(t))= \alpha + \beta  t +e_t
+\]
+
+The estimated slope coefficient \(\hat\beta\) is used to estimate
+\(R_0\) as in the following formula:
+
+\[\widehat\beta=(\widehat{R_0})\,(\gamma+\mu)\] The parameter
+\(\mu\)\<\<\(\gamma\) and it can not be considered. As consequence, R0
+can be estimated as follows \[\hat{R_0}=\frac{\hat{\beta}}{\gamma}
+\]
+
+The incubation period \(1/ \gamma\) for the coronavirus is in mean 5.1
+days with a range from 2-14 days. Please see
 <https://www.worldometers.info/coronavirus/coronavirus-incubation-period/>.
 However, the incubation period is used for epidemic diseases that causes
 the immediate home isolation of infected subjects.
@@ -127,71 +173,20 @@ We calculate several R0 values, each one based on a mobile window of 5
 days, that can be sufficient to estimate a local trend, in order to
 assess if the R0 trend is decreasing (how is expected to be).
 
-``` r
-#calculate r0 based with a mobile window of 5 days
-#vector for beta and standard deviation
-beta_vec<-NULL
-sd_vec<-NULL
-#for cycle for R0 estimates from days-2 to days+2
-for (i in 3:(days-2)){
-fit <- lm(log(totale_attualmente_positivi)~t,data=dat_csv[(i-2):(i+2),])
-beta_vec<-c(beta_vec,coef(fit)[2])
-sd_vec<-c(sd_vec,coef(summary(fit))[2,2])
-}
-
-label<-as.Date(substr(dat_csv$data,1,10))[3:(days-2)]
-
-
-mean  <- (beta_vec*14)
-lower <- ((beta_vec-1.96*sd_vec)*14)
-upper <- ((beta_vec+1.96*sd_vec)*14)
-
-df <- data.frame(label, mean, lower, upper)
-
-library(ggplot2)
-fp <- ggplot(data=df, aes(x=label, y=mean, ymin=lower, ymax=upper)) +
-  geom_pointrange() +
-  geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
-  xlab("Date") + ylab("R0 Mean (95% CI)") +
-  theme_bw() 
-print(fp)
-```
-
 ![](draft_analysis_Italy_files/figure-gfm/R0%20trend-1.png)<!-- -->
 
 The R0 shows a decreasing trend in the last period. We use the estimated
 trend between R0 and time to calculate the future R0 value for the next
-14 days. We predict beta (and R0) for the next 14 days assuming a Gamma
-distribution for the beta (the slope) forcing its value to be greater
-than 0. The trend was not monotonic, we use a simple splines to increase
-the fitting of the model to the data.
-
-``` r
-library(splines)
-time<-3:(days-2)
-beta.model<-glm(beta_vec~time,weights = 1/sd_vec,family=Gamma)
-forecast=14
-# add 'fit', 'lwr', and 'upr' columns to dataframe (generated by predict)
-pre<-predict(beta.model,type='response',newdata=data.frame(time=1:(days+forecast)),se.fit=TRUE)
-date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast-1+dim(dat_csv)[1],1)
-beta.predict <- data.frame(beta_vec=c(beta_vec,rep(NA,forecast+4)),time=date,fit=pre$fit,lwr=pre$fit-1*1.96*pre$se.fit,upr=pre$fit+1*1.96*pre$se.fit)
-
-r0.predict<-beta.predict
-r0.predict[,c(1,3:5)]<-r0.predict[,c(1,3:5)]*14
-# plot the points (actual observations), regression line, and confidence interval
-p <- ggplot(r0.predict, aes(date,beta_vec))
-p <- p + geom_point() +labs(x="Date",y="R0 value") 
-p <- p + geom_line(aes(date,fit))
-p <- p + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.3)
-p
-```
+14 days. We predict beta (and R0) for the next 14 days by means of a
+linear regressione model, assuming a Log-normal distribution for the
+beta (the slope) forcing its value to be greater than 0.
 
     ## Warning: Removed 18 rows containing missing values (geom_point).
 
 ![](draft_analysis_Italy_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
 R0 passes from a value of 4.57 in the initial phase to an estimated
-value of 1.51 at the ending of the 14-days forecast.
+value of 1.29 at the ending of the 14-days forecast.
 
 We want to make a short term forecast (14 days) with 3 scenario, based
 on the number of exposed people:
@@ -224,14 +219,14 @@ the previous estimation
 I0<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I0
 ```
 
-    ## [1] 17750
+    ## [1] 20603
 
 ``` r
 # initial number of recovered
 R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
 ```
 
-    ## [1] 1966
+    ## [1] 2335
 
 ``` r
 # italian poulation
@@ -292,13 +287,13 @@ legend("topleft",c("first scenario - Exp=10*I","second scenario Exp=5*I","third 
 ![](draft_analysis_Italy_files/figure-gfm/scenario%20plot-1.png)<!-- -->
 
 The 3 scenarios show different numbers. If we consider the second
-scenario, at the end of the 2 weeks (2020-03-28) the number of infected
-is (4.365968410^{4}).
+scenario, at the end of the 2 weeks (2020-03-29) the number of infected
+is (4.978022710^{4}).
 
 In the next plot the cumulative number of infected.  
-At the end of the 2 weeks (2020-03-28) the total number of COVID19 cases
+At the end of the 2 weeks (2020-03-29) the total number of COVID19 cases
 is expected to be
-(7.073708110^{4}).
+(8.106112910^{4}).
 
 ``` r
 plot(date,c(dat_csv$totale_casi,(seir1$I+seir1$R)*N),type="l",ylab="Cases",xlab="time",main="Cumulative Infected")
