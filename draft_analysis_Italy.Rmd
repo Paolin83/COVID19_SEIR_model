@@ -1,62 +1,175 @@
+```{r echo=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_knit$set(root.dir= normalizePath('..'))
+knitr::opts_chunk$set(error = FALSE)
+```
+
 ---
-title: "COVID19 - Forecast and predictions using a time dependent SEIR model" 
-author: "PG"
-date: "3/13/2020"
-output: github_document
+title: "COVID19 - Forecast and predictions using a time dependent SEIR model"
+author: "Paolo Girardi"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+  df_print: paged
+pdf_document: 
+  toc: yes
 ---
+  
+<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
+
+# Disclaimer
+
+* We want to investigate the evolution of the coronavirus pandemic in Italy from a statistical perspective using aggregated data.
+
+* Our point of view is that of surveillance with the goal of detecting important changes in the underlying (random) process as soon as possible after it has occured.
+
+* We use data provided by  Italian Civil Protection Department 
+
+* This document is in a draft mode, and it is continuously updated.
+
+* The layout of the draft must definitely be improved.
+
 ## The COVID dataset
 
-The present analysis started from the dataset on COVID19 updated in https://github.com/pcm-dpc/COVID-19, database provided by the Italian Civil Protection.  
-```{r setup}
+The present analysis started from the dataset on COVID19 updated in
+<https://github.com/pcm-dpc/COVID-19>, database provided by the Italian
+Civil Protection.
+
+
+
+
+
+
+# Software 
+
+Install  packages `dygraphs`,  `xts` and `EpiDynamics` if not available
+
+```{r echo=TRUE}
+checkpackage <- function(package) {
+  if (!package %in% installed.packages()) install.packages(package)
+}
+checkpackage("dygraphs")
+checkpackage("xts")
+checkpackage("EpiDynamics")
+```
+and load them.
+```{r, warning=FALSE}
+library(dygraphs)
+library(xts)
+library(EpiDynamics)
+```
+
+# Source of the data 
+
+Download the data from
+
+https://github.com/pcm-dpc/COVID-19/
+  
+  
+  
+# Results
+  
+  
+  
+## Load dataset
+```{r}
+
 rm(list=ls())
 ###import italian dataset updated 13 March 2020
   dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-andamento-nazionale/dpc-covid19-ita-andamento-nazionale.csv",header=T)
 days<-dim(dat_csv)[1]
 dat_csv$t<-1:days
-#database contains  the following variables
-names(dat_csv)
 # The total number of epidemic day is
 days
+
+```
+Several outcomes can be potentially monitored, that is
+
+```{r}
+names(dat_csv[,-c(1:2,13)])
+
 ```
 
+It is worth noting that some outcomes present negative counts in some regions. It looks like some of these negative counts are redesignations. Outcomes presenting negative values cannot be analyzed using the proposed model.
 
 
-With the aim of predicting the future number of COVID19 cases on the basis of the actual data, we used a SEIR model applied to the COVID19 epidemic in Italy.
-A first parameter to estimate is R0, the reproduction number (https://en.wikipedia.org/wiki/Basic_reproduction_number).   R0 indicates how contagious an infectious disease is. It is also referred to as "the reproduction number" of COVID19.
+Then we extract the timeseries. 
 
-The R0 value has been estimated by means of a linear regression model as reported in https://kingaa.github.io/clim-dis/parest/parest.html.   
-
-The following plot presented the actual status.
-
-```{r plots}
-library(tidyr)
-library(dplyr)
-library(ggplot2)
-df <- dat_csv %>%
-  select(data, ricoverati_con_sintomi, terapia_intensiva, 
-         totale_ospedalizzati, isolamento_domiciliare, 
-         totale_attualmente_positivi, nuovi_attualmente_positivi, 
-         dimessi_guariti, deceduti, totale_casi) %>%
-  gather(key = "variable", value = "value", -data)
-head(df, 3)
-
-ggplot(df, aes(x = as.Date(data), y = value)) + 
-  geom_line(aes(color = variable), size = 1) 
+```{r}
+myDateTimeStr1 <- dat_csv$data
+myPOSIXct1 <- as.POSIXct(myDateTimeStr1, format="%Y-%m-%d %H:%M:%S")
+days_dy<-as.Date(myPOSIXct1)
+dat_csv_dy<-xts(dat_csv[,-(1:2)], order.by = days_dy, frequency = 7)
 ```
-  
-The plot shows an exponential grow of cases.\\
 
-We estimate the R0 parameter by means of a linear model.   
+```{r}
+p <- dygraph(dat_csv_dy,main=paste("Italy",sep =""),xlab="Day",height=400,width=800) 
+p
+```
 
-Y_t= a + beta * t +e_t   
+### The S(E)IR model (to be revised)
 
-where $`Y_t`$ is the  number of infected at the time t, while b is beta, the slope of the regression line.  
+With the aim of predicting the future number of COVID19 cases on the
+basis of the actual data, we used a SEIR model applied to the COVID19
+epidemic in Italy.
 
-The slope coefficient is used to estimate R0 as in the following formula:
+We will consider  the classical [SIR model](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology) [@Kermack1927].
 
-R0=beta*incubation period.  
+The model divides a population of hosts into three classes:
+susceptible, infected, recovered.
+The model describes how the portion of the population in each of these classes changes with time.
+Births are modeled as flows from "elsewhere" into the susceptible class;
+deaths are modeled as flows from the $S$, $I$, or $R$ compartment into "elsewhere".
+If $S$, $I$, and $R$ refer to the numbers of individuals in each compartment, then these **state variables** change according to the following system of differential equations:
+$$\begin{aligned}
+\frac{d}{dt}S(t) &= B(t)-\lambda\,S(t)-\mu\,S(t)\\
+\frac{d}{dt}I(t) &= \lambda\,S(t)-\gamma\,I(t)-\mu\,I(t)\\
+\frac{d}{dt}R(t) &= \gamma\,I(t)-\mu\,R(t).\\
+\end{aligned}$$
+Here, $B$ is the crude birth rate (births per unit time), $\mu$ is the death rate and $\gamma$ is the recovery rate.
+We'll assume that the force of infection, $\lambda$, for a constant population $N$
+$$\lambda = \beta\,\frac{I}{N},$$
+so that the risk of infection a susceptible faces is proportional to the *prevalence* (the fraction of the population that is infected).
+This is known as the assumption of frequency-dependent transmission.
 
-The incubation period for the coronavirus is in mean 5.1 days with a range from 2-14 days. Please see https://www.worldometers.info/coronavirus/coronavirus-incubation-period/. However, the incubation period is used for epidemic diseases that causes the immediate home isolation of infected subjects.  
+
+# The reproduction number of COVID19.
+
+The number of infected individuals $I$ at time $t$ is approximately 
+$$I(t)\;\approx\;I_0\,e^{R_0\,(\gamma+\mu)\,t}$$
+where $I_0$ is the (small) number of infectives at time $0$, $\frac{1}{\gamma}$ is the infectious period, and $\frac{1}{\mu}$ is the host lifespan.
+
+$R_0$ is  the reproduction
+number (<https://en.wikipedia.org/wiki/Basic_reproduction_number>) and
+indicates how contagious an infectious disease is.
+
+Taking logs of both sides, we get
+
+$$\log{I}(t)\;\approx\;\log{I_0}+(R_0)\,(\gamma+\mu)\,t,$$
+which implies that a semi-log plot of $I$ vs $t$ should be approximately linear with a slope proportional to $R_0$ and the recovery rate.
+
+```{r}
+dat_csv_dy$log_totale_attualmente_positivi<-log(dat_csv_dy$totale_attualmente_positivi)
+p <- dygraph(dat_csv_dy$log_totale_attualmente_positivi,main=paste("Italy"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
+p
+```
+
+We estimate the $R_0$ parameter in the linear model.
+
+$$
+\log(I(t))= \alpha + \beta  t +e_t
+$$
+
+The estimated slope coefficient $\hat\beta$ is used to estimate $R_0$ as in the following formula:
+
+$$\widehat\beta=(\widehat{R_0})\,(\gamma+\mu)$$
+The parameter $\mu$<<$\gamma$ and it can not be considered. As consequence, R0 can be estimated as follows
+$$\hat{R_0}=\frac{\hat{\beta}}{\gamma}
+$$
+
+
+The incubation period $1/ \gamma$ for the coronavirus is in mean 5.1 days with a range from 2-14 days. Please see https://www.worldometers.info/coronavirus/coronavirus-incubation-period/. However, the incubation period is used for epidemic diseases that causes the immediate home isolation of infected subjects.  
 
 In the calculation we considered an "incubation period" of 14 days for two reasons:  
 1) the majority of cases is asymptomatic, contagiousness is greater than 5, maybe 14. A minority (who made the swab) will have a duration of about 5 days between the start of contagiousness and swab; 
