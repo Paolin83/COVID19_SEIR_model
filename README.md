@@ -17,7 +17,7 @@ A gentle (and informal) introduction to SEIR models ([Link to the Video](https:/
 # In addition... draft analysis
 
 - [BYM model for Lombardy Region](BYM_model/INLA_def.md)
-
+(R-Markdown  [here](BYM_model/INLA_def.Rmd))
 
 
 [My personal page](https://paolin83.github.io)
