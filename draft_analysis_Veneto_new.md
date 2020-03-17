@@ -2,7 +2,7 @@ COVID19 - Forecast and predictions using a time dependent SEIR model -
 Veneto Region
 ================
 Paolo Girardi
-15 Marzo, 2020
+17 Marzo, 2020
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
 work is licensed under a
@@ -68,12 +68,6 @@ and load them.
     ## 
     ##     as.Date, as.Date.numeric
 
-    ## Registered S3 methods overwritten by 'ggplot2':
-    ##   method         from 
-    ##   [.quosures     rlang
-    ##   c.quosures     rlang
-    ##   print.quosures rlang
-
     ## Loading required package: BoomSpikeSlab
 
     ## Loading required package: Boom
@@ -111,7 +105,7 @@ Download the data from
 
 ## Load dataset
 
-    ## [1] 21
+    ## [1] 22
 
 Several outcomes can be potentially monitored, that is
 
@@ -232,7 +226,7 @@ beta (the slope) and forcing its value to be greater than
 ![](draft_analysis_Veneto_new_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
 R0 passes from a value of 5.64 in the initial phase to an estimated
-value of 1.23 at the ending of the 14-days forecast.
+value of 1.32 at the ending of the 14-days forecast.
 
 We want to make a short term forecast (14 days) with 3 scenario, based
 on the number of exposed people:
@@ -265,14 +259,14 @@ the previous estimation
 I0<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I0
 ```
 
-    ## [1] 1989
+    ## [1] 2274
 
 ``` r
 # initial number of recovered
 R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
 ```
 
-    ## [1] 120
+    ## [1] 130
 
 ``` r
 # Veneto Region population
@@ -311,16 +305,16 @@ model1 <- bsts(log(beta_vec),
                niter = 1000)
 ```
 
-    ## =-=-=-=-= Iteration 0 Sun Mar 15 23:58:29 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Sun Mar 15 23:58:29 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Sun Mar 15 23:58:29 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Sun Mar 15 23:58:29 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Sun Mar 15 23:58:29 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Sun Mar 15 23:58:29 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Sun Mar 15 23:58:29 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Sun Mar 15 23:58:29 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Sun Mar 15 23:58:29 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Sun Mar 15 23:58:29 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Tue Mar 17 12:02:32 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Tue Mar 17 12:02:32 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Tue Mar 17 12:02:32 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Tue Mar 17 12:02:32 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Tue Mar 17 12:02:32 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Tue Mar 17 12:02:32 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Tue Mar 17 12:02:32 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Tue Mar 17 12:02:32 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Tue Mar 17 12:02:32 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Tue Mar 17 12:02:32 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
@@ -440,9 +434,9 @@ p
 ![](draft_analysis_Veneto_new_files/figure-gfm/scenario%20plot%20-3.png)<!-- -->
 
 The 3 scenarios show different numbers. If we consider the second
-scenario, at the end of the 2 weeks (2020-03-29) the number of infected
-is (4856.4957641).
+scenario, at the end of the 2 weeks (2020-03-30) the number of infected
+is (4688.784403).
 
 In the next plot the cumulative number of infected.  
-At the end of the 2 weeks (2020-03-29) the total number of COVID19 cases
-is expected to be (8652.6221879).
+At the end of the 2 weeks (2020-03-30) the total number of COVID19 cases
+is expected to be (8744.1993965).
