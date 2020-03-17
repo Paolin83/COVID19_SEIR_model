@@ -105,7 +105,7 @@ Download the data from
 
 ## Load dataset
 
-    ## [1] 22
+    ## [1] 23
 
 Several outcomes can be potentially monitored, that is
 
@@ -226,7 +226,7 @@ beta (the slope) and forcing its value to be greater than
 ![](draft_analysis_Veneto_new_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
 R0 passes from a value of 5.64 in the initial phase to an estimated
-value of 1.32 at the ending of the 14-days forecast.
+value of 1.29 at the ending of the 14-days forecast.
 
 We want to make a short term forecast (14 days) with 3 scenario, based
 on the number of exposed people:
@@ -259,14 +259,14 @@ the previous estimation
 I0<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I0
 ```
 
-    ## [1] 2274
+    ## [1] 2488
 
 ``` r
 # initial number of recovered
 R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
 ```
 
-    ## [1] 130
+    ## [1] 136
 
 ``` r
 # Veneto Region population
@@ -305,16 +305,16 @@ model1 <- bsts(log(beta_vec),
                niter = 1000)
 ```
 
-    ## =-=-=-=-= Iteration 0 Tue Mar 17 12:02:32 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Tue Mar 17 12:02:32 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Tue Mar 17 12:02:32 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Tue Mar 17 12:02:32 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Tue Mar 17 12:02:32 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Tue Mar 17 12:02:32 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Tue Mar 17 12:02:32 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Tue Mar 17 12:02:32 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Tue Mar 17 12:02:32 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Tue Mar 17 12:02:32 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Tue Mar 17 18:27:40 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Tue Mar 17 18:27:40 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Tue Mar 17 18:27:40 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Tue Mar 17 18:27:40 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Tue Mar 17 18:27:40 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Tue Mar 17 18:27:40 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Tue Mar 17 18:27:40 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Tue Mar 17 18:27:40 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Tue Mar 17 18:27:40 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Tue Mar 17 18:27:41 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
@@ -426,7 +426,7 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Veneto Region: Scenario 3  (Credible Interval ",100*50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 3  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
@@ -434,9 +434,9 @@ p
 ![](draft_analysis_Veneto_new_files/figure-gfm/scenario%20plot%20-3.png)<!-- -->
 
 The 3 scenarios show different numbers. If we consider the second
-scenario, at the end of the 2 weeks (2020-03-30) the number of infected
-is (4688.784403).
+scenario, at the end of the 2 weeks (2020-03-31) the number of infected
+is (5608.1314227).
 
 In the next plot the cumulative number of infected.  
-At the end of the 2 weeks (2020-03-30) the total number of COVID19 cases
-is expected to be (8744.1993965).
+At the end of the 2 weeks (2020-03-31) the total number of COVID19 cases
+is expected to be (1.019809810^{4}).
