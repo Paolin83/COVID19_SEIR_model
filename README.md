@@ -14,7 +14,7 @@ Prediction on COVID 19 epidemic using SEIR models with 3 scenarios
 
 A gentle (and informal) introduction to SEIR models ([Link to the Video](https://cdnapisec.kaltura.com/index.php/extwidget/preview/partner_id/2203921/uiconf_id/38339202/entry_id/0_h8tbt3k6/embed/dynamic)) in italian   
 
-# In addition... draft analysis
+# In addition... an another draft analysis
 
 - [BYM model for Lombardy Region](BYM_model/INLA_def.md)
 (HTML R-Markdown  [here](BYM_model/INLA_def_html.Rmd))
