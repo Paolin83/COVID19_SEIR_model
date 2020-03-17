@@ -48,10 +48,7 @@ dat_csv$totale_casi[dat_csv$data!="2020-02-24 18:00:00"]<-unlist(tapply(dat_csv$
 dat_csv$totale_casi[dat_csv$totale_casi<0]<-0
 
 #import dataset shapefile Italian province
-
-
-
-nc.province <- readOGR("BYM_model/ProvCM01012019_g",layer ="ProvCM01012019_g_WGS84")
+nc.province <- readShapePoly("../BYM_model/ProvCM01012019_g/ProvCM01012019_g_WGS84.shp")
 nc.province<-nc.province[nc.province$COD_REG==Region,]
 nc.province<-nc.province[order(nc.province$COD_PROV),]
 nc.province$ID<-as.factor(nc.province$COD_PROV)
@@ -59,8 +56,8 @@ levels(nc.province$ID)<-1:length(levels(nc.province$ID))
 nc.province$ID<-as.numeric(nc.province$ID)
 #Create adjacency matrix
 nc.nb <- poly2nb(nc.province,snap=0.01)
-nb2INLA(paste(wd,"nc.adj",sep=""), nc.nb)
-file.adj <- paste(wd,"nc.adj",sep="")
+nb2INLA("nc.adj", nc.nb)
+file.adj <- "nc.adj"
 ################################
 ```
 
