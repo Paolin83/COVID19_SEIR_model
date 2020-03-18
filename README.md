@@ -18,8 +18,9 @@ A gentle (and informal) introduction to SEIR models ([Link to the Video](https:/
 # In addition... an another draft analysis
 
 - [BYM model for Lombardy Region](BYM_model/INLA_def.md)
-(HTML R-Markdown  [here](BYM_model/INLA_def_html.Rmd) and for [downloading](BYM_model/INLA_def_html.html?raw=true))
-Can be easily adapted to all NUTS-3 Region.
+(HTML R-Markdown  [here](BYM_model/INLA_def_html.Rmd) and for [downloading](BYM_model/INLA_def_html.html?raw=true))  
+
+Can be easily adapted to all the NUTS-3 Italian Regions.
 
 [My personal page](https://paolin83.github.io)
 
