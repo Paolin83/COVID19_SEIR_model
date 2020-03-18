@@ -7,10 +7,11 @@ Prediction on COVID 19 epidemic using SEIR models with 3 scenarios
 
 (html R-Markdown can be downloaded [here](draft_analysis_Italy_html.Rmd))
 
-- in Veneto Region (the same analysis, but focused on the Veneto Region)
+- in the Veneto Region (the same analysis, but focused on the Veneto Region)
 
 [a SEIR analysis Veneto Region](draft_analysis_Veneto_new.md)
 
+(html R-Markdown can be downloaded [here](draft_analysis_Veneto_html.Rmd))
 
 A gentle (and informal) introduction to SEIR models ([Link to the Video](https://cdnapisec.kaltura.com/index.php/extwidget/preview/partner_id/2203921/uiconf_id/38339202/entry_id/0_h8tbt3k6/embed/dynamic)) in italian   
 
