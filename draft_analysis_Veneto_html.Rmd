@@ -5,7 +5,7 @@ knitr::opts_knit$set(root.dir= normalizePath('..'))
 knitr::opts_chunk$set(error = FALSE)
 ```
 ---
-title: "COVID19 - Forecast and predictions using a time dependent SEIR model"
+title: "COVID19 - Forecast and predictions using a time dependent SEIR model for the Veneto Region"
 author: "Paolo Girardi"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:html_document:
@@ -17,17 +17,25 @@ pdf_document:
 
 # Disclaimer
 
-* We want to investigate the evolution of the coronavirus pandemic in Italy from a statistical perspective using aggregated data.
+* We want to investigate the evolution of the coronavirus pandemic in the Veneto Region from a statistical perspective using aggregated data.
 
 * Our point of view is that of surveillance with the goal of detecting important changes in the underlying (random) process as soon as possible after it has occured.
 
-* We use data provided by  Italian Civil Protection Department 
+* We use data provided by  Italian Civil Protection Department and the analysis was restricted to the Veneto Rego
 
 * This document is in a draft mode, and it is continuously updated.
 
 * The layout of the draft must definitely be improved.   
 
-NB:  the file draft_analysis_italy_html.Rmd performs the same analysis enabling Javascript Pictures.
+*NB: set the file output format to   
+
+#output:html_document:  
+  df_print: paged  
+pdf_document:   
+  toc: yes    
+  
+which  performs the same analysis enabling Javascript Pictures.  
+
 ## The COVID dataset
 
 The present analysis started from the dataset on COVID19 updated in
@@ -79,15 +87,15 @@ https://github.com/pcm-dpc/COVID-19/
   
 ## Load dataset
 ```{r}
-
 rm(list=ls())
 ###import italian updated dataset 
-  dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-andamento-nazionale/dpc-covid19-ita-andamento-nazionale.csv",header=T)
+dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-regioni/dpc-covid19-ita-regioni.csv",header=T)
+#we restricted the analysis to the Veneto Region
+dat_csv<-dat_csv[dat_csv$codice_regione==5,]
 days<-dim(dat_csv)[1]
 dat_csv$t<-1:days
 # The total number of epidemic day is
 days
-
 ```
 Several outcomes can be potentially monitored, that is
 
@@ -105,11 +113,11 @@ Then we extract the timeseries.
 myDateTimeStr1 <- dat_csv$data
 myPOSIXct1 <- as.POSIXct(myDateTimeStr1, format="%Y-%m-%d %H:%M:%S")
 days_dy<-as.Date(myPOSIXct1)
-dat_csv_dy<-xts(dat_csv[,-c(1:2,12:13)], order.by = days_dy, frequency = 7)
+dat_csv_dy<-xts(dat_csv[,-c(1:7,16:17)], order.by = days_dy, frequency = 7)
 ```
 
 ```{r}
-p <- dygraph(dat_csv_dy,main=paste("Italy",sep =""),xlab="Day",height=400,width=800) 
+p <- dygraph(dat_csv_dy,main=paste("Veneto Region",sep =""),xlab="Day",height=400,width=800) 
 p
 ```
 
@@ -117,7 +125,7 @@ p
 
 With the aim of predicting the future number of COVID19 cases on the
 basis of the actual data, we used a SEIR model applied to the COVID19
-epidemic in Italy.
+epidemic to the Veneto Region in Italy
 
 We will consider  the classical [SIR model](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology) [@Kermack1927].
 
@@ -142,7 +150,7 @@ This is known as the assumption of frequency-dependent transmission.
 # The reproduction number of COVID19.
 
 The number of infected individuals $I$ at time $t$ is approximately 
-$$I(t)\;\approx\;I_0\,e^{R_0\,(\gamma+\mu)\,t}$$
+$$I(t)\;\approx\;I_0\,e^{(R_0-1)\,(\gamma+\mu)\,t}$$
 where $I_0$ is the (small) number of infectives at time $0$, $\frac{1}{\gamma}$ is the infectious period, and $\frac{1}{\mu}$ is the host lifespan.
 
 $R_0$ is  the reproduction
@@ -151,19 +159,19 @@ indicates how contagious an infectious disease is.
 
 Taking logs of both sides, we get
 
-$$\log{I}(t)\;\approx\;\log{I_0}+(R_0)\,(\gamma+\mu)\,t,$$
+$$\log{I}(t)\;\approx\;\log{I_0}+(R_0-1)\,(\gamma+\mu)\,t,$$
 which implies that a semi-log plot of $I$ vs $t$ should be approximately linear with a slope proportional to $R_0$ and the recovery rate.
 
 ```{r}
 dat_csv_dy$log_totale_attualmente_positivi<-log(dat_csv_dy$totale_attualmente_positivi)
-p <- dygraph(dat_csv_dy$log_totale_attualmente_positivi,main=paste("Italy"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
+p <- dygraph(dat_csv_dy$log_totale_attualmente_positivi,main=paste("Veneto Region"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
 p
 ```
 
 We estimate the $R_0$ parameter in the linear model.
 
 $$
-\log(I(t))= \beta_0 + \beta_1  t +e_t
+\log(I(t))= \beta_0 + \beta_1  t +e_t.
 $$
 
 The estimated slope coefficient $\hat\beta_1$ is used to estimate $R_0$ as in the following formula:
@@ -259,14 +267,14 @@ We want to make a short term forecast (14 days) with 3 scenario, based on the nu
 -Scenario 3: 3 exposed people for each COVID-19 case  (-70% exposed people)
 
 We made a forecast by means of a SEIR model fixing a series of initial status:  
-- S0=N, the size of Italian population   
+- S0=N, the size of Veneto Region population   
 - E= f * I_start (with f a fixed factor of the previous scenario)  
 - I_start: initial number of COVID-19 cases  
 - R_start: initial number of recovered   
   
 and parameters:  
-- beta: gamma+slope $\beta_1$
-- gamma= 1/duration (rate of infection duration of COVID-19, 14 days)  
+- beta: gamma + slope
+- gamma= 1/duration (rate of infection duration of COVID-19, duration=14 days)  
 - sigma0: the coronavirus transmission rate (half of flu epidemic)   
 - mu0: the overall mortality rate    
 
@@ -275,8 +283,8 @@ and parameters:
 I_start<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I_start
 # initial number of recovered
 R_start<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R_start
-# italian poulation
-N=60480000
+# Veneto Region population
+N=4905854
 # duration of COVID19 
 duration<-14
 #sigma0 is the coronavirus transmission rate fixed to 5%  (half of flu epidemic)
@@ -298,23 +306,22 @@ We made a forecast forward of 14 days dropping the first 100 simulation as burn-
 
 ```{r bsts model fit and prediction, echo=TRUE}
 # Bayesian Structural Time Series
-set.seed(123)
 ss <- AddLocalLinearTrend(list(), beta_vec)
 model1 <- bsts(beta_vec,
                state.specification = ss,
                niter = 1000)
 par(mfrow = c(1,1))
-plot(model1, "components", ylab="Beta coefficient", xlab="days")
+plot(model1, "components", ylab="Beta1 coefficient", xlab="days")
 #previsioni
 pred1 <- predict(model1, horizon = 16, burn = 100)
 par(mfrow = c(1,1))
-plot(pred1 , ylab="Beta coefficient",main="Data and predictions")
+plot(pred1 , ylab="Beta1 coefficient",main="Data and predictions")
 # matrix of beta coefficients
 coef<-(pred1$distribution[,3:16])
 par(mfrow = c(1,1))
 ```
 For each vectors of simulated beta coefficients we perform a SEIR model (one for each scenario).  
-We save the results and plot a credible interval at 90% (5-95% percentile).
+We save the results and plot a credible interval at 50% (25-75% percentile).
 
 ```{r  scenario plot , echo=TRUE}
 
@@ -326,19 +333,19 @@ for(s in 1:dim(coef)[1]){
   forecast<-14
   seir1<-seir2<-seir3<-NULL
   for(i in 1:forecast){
-    parameters <- c(mu = mu0, beta = matrix(coef[s,i])+1/duration, sigma = sigma0, gamma = 1/duration)
+    parameters <- c(mu = mu0, beta = (matrix(coef[s,i])+1/duration), sigma = sigma0, gamma = 1/duration)
     f1<-10
     if( i==1) initials <- c(S = 0.95, E = (f1*I_start/N), I = I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
     seir1_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir1 <- rbind(seir1,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
     f2<-5
-    if( i==1) initials <- c(S = 0.95, E = (f2*I_start/N), I = I_start/N, R = R_start/N)
+    if( i==1) initials <- c(S = 0.95, E = (f2*I_start/N), I =  I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir2_temp$results$S[2], E = seir2_temp$results$E[2], I =seir2_temp$results$I[2], R = seir2_temp$results$R[2])
     seir2_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir2 <- rbind(seir2,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
     f3<-3
-    if( i==1) initials <- c(S = 0.95, E = (f3*I_start/N), I = I_start/N, R = R_start/N)
+    if( i==1) initials <- c(S = 0.95, E = (f3*I_start/N), I =  I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir3_temp$results$S[2], E = seir3_temp$results$E[2], I =seir3_temp$results$I[2], R = seir3_temp$results$R[2])
     seir3_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir3 <- rbind(seir3,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
@@ -352,10 +359,8 @@ colnames(seir1_sim)[1]<-colnames(seir2_sim)[1]<-colnames(seir3_sim)[1]<-"sim"
 
 ### confidence limits
 I_seir_med<-tapply(seir1_sim$I,seir1_sim$time,median)
-limits<-c(0.05,0.95)
-confidence<-diff(limits)
-I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=limits[1])
-I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=limits[2])
+I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.25)
+I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.75)
 
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
@@ -365,28 +370,28 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Italy: Scenario 1 (Credible Interval ",100*confidence,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 1 (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 
 ### confidence limits - scenario 2
 I_seir_med<-tapply(seir2_sim$I,seir2_sim$time,median)
-I_seir_lwr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=limits[1])
-I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=limits[2])
+I_seir_lwr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.25)
+I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.75)
 
 mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
 mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Italy: Scenario 2 (Credible Interval ",100*confidence,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 2  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 
 ### confidence limits - scenario 3
 I_seir_med<-tapply(seir3_sim$I,seir3_sim$time,median)
-I_seir_lwr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=limits[1])
-I_seir_upr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=limits[2])
+I_seir_lwr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=0.25)
+I_seir_upr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=0.75)
 
 
 mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
@@ -394,7 +399,7 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Italy: Scenario 3 (Credible Interval ",100*confidence,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 3  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```

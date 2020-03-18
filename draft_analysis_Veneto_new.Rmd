@@ -403,7 +403,5 @@ p
 ```
 
 The 3 scenarios show different numbers. 
-If we consider the second scenario, at the end of the 2 weeks (`r date[length(date)]`) the number of infected is  (`r (tapply(seir2_sim$I,seir2_sim$time,median)*N)[forecast]`).  
-
-In the next plot the cumulative number of infected.  
-At the end of the 2 weeks (`r date[length(date)]`) the total number of COVID19 cases is expected to be  (`r (tapply(seir2_sim$I,seir2_sim$time,median)*N+tapply(seir2_sim$R,seir2_sim$time,median)*N)[forecast]`).  
+If we consider the second scenario at the end of the 2 weeks (`r date[length(date)]`):
+* the number of infected is  (`r (tapply(seir2_sim$I,seir2_sim$time,median)*N)[forecast]`). * the total number of COVID19 cases is expected to be  (`r (tapply(seir2_sim$I,seir2_sim$time,median)*N+tapply(seir2_sim$R,seir2_sim$time,median)*N)[forecast]`).  
