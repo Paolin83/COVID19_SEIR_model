@@ -1,6 +1,6 @@
 # COVID19 14-days forecast
 Prediction on COVID 19 epidemic using SEIR models with 3 scenarios
-(analysis updated on 17 March 2020, 11.00 )
+(analysis updated on 18 March 2020, 01.00 )
 - in Italy
 
 [a SEIR analysis Italy](draft_analysis_Italy_new.md)
