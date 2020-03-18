@@ -2,7 +2,7 @@ COVID19 - Forecast and predictions using a time dependent SEIR model -
 Veneto Region
 ================
 Paolo Girardi
-17 Marzo, 2020
+18 Marzo, 2020
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
 work is licensed under a
@@ -160,9 +160,9 @@ assumption of frequency-dependent transmission.
 # The reproduction number of COVID19.
 
 The number of infected individuals \(I\) at time \(t\) is approximately
-\[I(t)\;\approx\;I_0\,e^{R_0\,(\gamma+\mu)\,t}\] where \(I_0\) is the
-(small) number of infectives at time \(0\), \(\frac{1}{\gamma}\) is the
-infectious period, and \(\frac{1}{\mu}\) is the host lifespan.
+\[I(t)\;\approx\;I_0\,e^{(R_0-1)\,(\gamma+\mu)\,t}\] where \(I_0\) is
+the (small) number of infectives at time \(0\), \(\frac{1}{\gamma}\) is
+the infectious period, and \(\frac{1}{\mu}\) is the host lifespan.
 
 \(R_0\) is the reproduction number
 (<https://en.wikipedia.org/wiki/Basic_reproduction_number>) and
@@ -170,9 +170,9 @@ indicates how contagious an infectious disease is.
 
 Taking logs of both sides, we get
 
-\[\log{I}(t)\;\approx\;\log{I_0}+(R_0)\,(\gamma+\mu)\,t,\] which implies
-that a semi-log plot of \(I\) vs \(t\) should be approximately linear
-with a slope proportional to \(R_0\) and the recovery
+\[\log{I}(t)\;\approx\;\log{I_0}+(R_0-1)\,(\gamma+\mu)\,t,\] which
+implies that a semi-log plot of \(I\) vs \(t\) should be approximately
+linear with a slope proportional to \(R_0\) and the recovery
 rate.
 
 ![](draft_analysis_Veneto_new_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
@@ -180,16 +180,24 @@ rate.
 We estimate the \(R_0\) parameter in the linear model.
 
 \[
-\log(I(t))= \alpha + \beta  t +e_t
+\log(I(t))= \beta_0 + \beta_1  t +e_t.
 \]
 
-The estimated slope coefficient \(\hat\beta\) is used to estimate
+The estimated slope coefficient \(\hat\beta_1\) is used to estimate
 \(R_0\) as in the following formula:
 
-\[\widehat\beta=(\widehat{R_0})\,(\gamma+\mu)\] The parameter
-\(\mu\)\<\<\(\gamma\) and it can not be considered. As consequence, R0
-can be estimated as follows \[\hat{R_0}=\frac{\hat{\beta}}{\gamma}
-\]
+\[
+\widehat\beta_1=(\widehat{R_0}-1)\,(\gamma+\mu)
+\] The parameter \(\mu\)\<\<\(\gamma\) and it can not be considered. As
+consequence, R0 can be estimated as follows \[
+\hat{R_0}=1+\frac{\hat{\beta_1}}{\gamma}
+\] Respect to the SIR model, \(R_0\) can be estimated as follows: \[
+\hat{R_0}=\frac{\hat{\beta}}{\gamma}
+\] And this was we can retrive the value of \(\beta\) in the SEIR model
+by means of \[
+\hat{R_0}=\frac{\hat{\beta}}{\gamma}=1+\frac{\hat{\beta_1}}{\gamma}\\
+\hat{\beta}=(1+\frac{\hat{\beta_1}}{\gamma})*{\gamma}={\gamma}+\hat{\beta}_1
+\] where \(\beta_1\) is the slope coefficient. \\
 
 The incubation period \(1/ \gamma\) for the coronavirus is in mean 5.1
 days with a range from 2-14 days. Please see
@@ -217,16 +225,16 @@ impossibile to estimate.
 The R0 shows a decreasing trend in the last period. We use the estimated
 trend between R0 and time to calculate the future R0 value for the next
 14 days. We predict beta (and R0) for the next 14 days by means of a
-linear regressione model, assuming a Log-normal distribution for the
-beta (the slope) and forcing its value to be greater than
-0.
+linear regressione model, assuming a Normal distribution for the beta
+(the
+slope).
 
     ## Warning: Removed 18 rows containing missing values (geom_point).
 
 ![](draft_analysis_Veneto_new_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
-R0 passes from a value of 5.64 in the initial phase to an estimated
-value of 1.29 at the ending of the 14-days forecast.
+R0 passes from a value of 6.64 in the initial phase to an estimated
+value of 1.25 at the ending of the 14-days forecast.
 
 We want to make a short term forecast (14 days) with 3 scenario, based
 on the number of exposed people:
@@ -243,27 +251,26 @@ people)
 We made a forecast by means of a SEIR model fixing a series of initial
 status:  
 \- S0=N, the size of Veneto Region population  
-\- E= f \* I0 (with f a fixed factor of the previous scenario)  
-\- I0: initial number of COVID-19 cases  
-\- R0: initial number of recovered
+\- E= f \* I\_start (with f a fixed factor of the previous scenario)  
+\- I\_start: initial number of COVID-19 cases  
+\- R\_start: initial number of recovered
 
 and parameters:  
-\- beta: the quantity connected to R0 is considered to vary according
-the previous estimation  
-\- gamma= 1/duration (rate of infection duration of COVID-19, 14 days)  
+\- beta: gamma + slope - gamma= 1/duration (rate of infection duration
+of COVID-19, duration=14 days)  
 \- sigma0: the coronavirus transmission rate (half of flu epidemic)  
 \- mu0: the overall mortality rate
 
 ``` r
 # initial number of infectus
-I0<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I0
+I_start<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I_start
 ```
 
     ## [1] 2488
 
 ``` r
 # initial number of recovered
-R0<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R0
+R_start<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R_start
 ```
 
     ## [1] 136
@@ -299,26 +306,26 @@ as burn-in.
 
 ``` r
 # Bayesian Structural Time Series
-ss <- AddLocalLinearTrend(list(), log(beta_vec))
-model1 <- bsts(log(beta_vec),
+ss <- AddLocalLinearTrend(list(), beta_vec)
+model1 <- bsts(beta_vec,
                state.specification = ss,
                niter = 1000)
 ```
 
-    ## =-=-=-=-= Iteration 0 Tue Mar 17 18:27:40 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Tue Mar 17 18:27:40 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Tue Mar 17 18:27:40 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Tue Mar 17 18:27:40 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Tue Mar 17 18:27:40 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Tue Mar 17 18:27:40 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Tue Mar 17 18:27:40 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Tue Mar 17 18:27:40 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Tue Mar 17 18:27:40 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Tue Mar 17 18:27:41 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Wed Mar 18 01:30:01 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Wed Mar 18 01:30:01 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Wed Mar 18 01:30:01 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Wed Mar 18 01:30:01 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Wed Mar 18 01:30:01 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Wed Mar 18 01:30:01 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Wed Mar 18 01:30:01 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Wed Mar 18 01:30:01 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Wed Mar 18 01:30:01 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Wed Mar 18 01:30:01 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
-plot(model1, "components", ylab="Log beta coefficient", xlab="days")
+plot(model1, "components", ylab="Beta1 coefficient", xlab="days")
 ```
 
 ![](draft_analysis_Veneto_new_files/figure-gfm/bsts%20model%20fit%20and%20prediction-1.png)<!-- -->
@@ -327,14 +334,14 @@ plot(model1, "components", ylab="Log beta coefficient", xlab="days")
 #previsioni
 pred1 <- predict(model1, horizon = 16, burn = 100)
 par(mfrow = c(1,1))
-plot(pred1 , ylab="Log beta coefficient",main="Data and predictions")
+plot(pred1 , ylab="Beta1 coefficient",main="Data and predictions")
 ```
 
 ![](draft_analysis_Veneto_new_files/figure-gfm/bsts%20model%20fit%20and%20prediction-2.png)<!-- -->
 
 ``` r
 # matrix of beta coefficients
-coef<-(exp(pred1$distribution)[,3:16])
+coef<-(pred1$distribution[,3:16])
 par(mfrow = c(1,1))
 ```
 
@@ -352,19 +359,19 @@ for(s in 1:dim(coef)[1]){
   forecast<-14
   seir1<-seir2<-seir3<-NULL
   for(i in 1:forecast){
-    parameters <- c(mu = mu0, beta = matrix(coef[s,i]), sigma = sigma0, gamma = 1/duration)
+    parameters <- c(mu = mu0, beta = (matrix(coef[s,i])+1/duration), sigma = sigma0, gamma = 1/duration)
     f1<-10
-    if( i==1) initials <- c(S = 0.95, E = (f1*I0/N), I = I0/N, R = R0/N)
+    if( i==1) initials <- c(S = 0.95, E = (f1*I_start/N), I = I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
     seir1_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir1 <- rbind(seir1,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
     f2<-5
-    if( i==1) initials <- c(S = 0.95, E = (f2*I0/N), I = I0/N, R = R0/N)
+    if( i==1) initials <- c(S = 0.95, E = (f2*I_start/N), I =  I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir2_temp$results$S[2], E = seir2_temp$results$E[2], I =seir2_temp$results$I[2], R = seir2_temp$results$R[2])
     seir2_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir2 <- rbind(seir2,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
     f3<-3
-    if( i==1) initials <- c(S = 0.95, E = (f3*I0/N), I = I0/N, R = R0/N)
+    if( i==1) initials <- c(S = 0.95, E = (f3*I_start/N), I =  I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir3_temp$results$S[2], E = seir3_temp$results$E[2], I =seir3_temp$results$I[2], R = seir3_temp$results$R[2])
     seir3_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir3 <- rbind(seir3,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
@@ -435,8 +442,8 @@ p
 
 The 3 scenarios show different numbers. If we consider the second
 scenario, at the end of the 2 weeks (2020-03-31) the number of infected
-is (5608.1314227).
+is (5285.1576305).
 
 In the next plot the cumulative number of infected.  
 At the end of the 2 weeks (2020-03-31) the total number of COVID19 cases
-is expected to be (1.019809810^{4}).
+is expected to be (9863.3606208).
