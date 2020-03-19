@@ -335,17 +335,17 @@ for(s in 1:dim(coef)[1]){
   for(i in 1:forecast){
     parameters <- c(mu = mu0, beta = (matrix(coef[s,i])+1/duration), sigma = sigma0, gamma = 1/duration)
     f1<-10
-    if( i==1) initials <- c(S = 0.95, E = (f1*I_start/N), I = I_start/N, R = R_start/N)
+    if( i==1) initials <- c(S = 1-((1+f1)*I_start/N)-R_start/N, E = (f1*I_start/N), I = I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
     seir1_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir1 <- rbind(seir1,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
     f2<-5
-    if( i==1) initials <- c(S = 0.95, E = (f2*I_start/N), I =  I_start/N, R = R_start/N)
+    if( i==1) initials <- c(S = 1-((1+f1)*I_start/N)-R_start/N, E = (f2*I_start/N), I =  I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir2_temp$results$S[2], E = seir2_temp$results$E[2], I =seir2_temp$results$I[2], R = seir2_temp$results$R[2])
     seir2_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir2 <- rbind(seir2,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
     f3<-3
-    if( i==1) initials <- c(S = 0.95, E = (f3*I_start/N), I =  I_start/N, R = R_start/N)
+    if( i==1) initials <- c(S = 1-((1+f1)*I_start/N)-R_start/N, E = (f3*I_start/N), I =  I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir3_temp$results$S[2], E = seir3_temp$results$E[2], I =seir3_temp$results$I[2], R = seir3_temp$results$R[2])
     seir3_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir3 <- rbind(seir3,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])

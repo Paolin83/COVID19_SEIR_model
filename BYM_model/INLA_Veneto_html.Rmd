@@ -1,0 +1,392 @@
+---
+title: "COVID19 - Forecast and predictions using a BYM model in Italy"
+author: "Paolo Girardi"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:html_document:  
+  df_print: paged  
+pdf_document:   
+  toc: yes    
+  
+always_allow_html: yes
+---
+```{r echo=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_knit$set(root.dir= normalizePath('..'))
+knitr::opts_chunk$set(error = FALSE)
+```
+<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
+
+# Disclaimer
+
+* We want to investigate the evolution of the coronavirus pandemic in  Italy
+
+* Our point of view is that of surveillance with the goal of detecting important changes in the underlying (random) process as soon as possible after it has occured.
+
+* We use data provided by  Italian Civil Protection Department and the analysis was restricted to the Lombardy Region
+
+* This document is in a draft mode, and it is continuously updated.
+
+* The layout of the draft must definitely be improved.   
+
+NB: to compile this file please download the Italian Shapefile from the repository  
+and set the working directory here  
+```{r echo=TRUE}
+setwd("/Users/Paolo/My_Website/public/COVID19_SEIR_model")  
+```
+## The COVID dataset
+
+The present analysis started from the dataset on COVID19 updated in
+<https://github.com/pcm-dpc/COVID-19>, database provided by the Italian
+Civil Protection.
+
+
+# Software 
+
+Install  packages `dygraphs`,  `xts` and `EpiDynamics` if not available
+
+```{r echo=TRUE}
+checkpackage <- function(package) {
+  if (!package %in% installed.packages()) install.packages(package)
+}
+checkpackage("dygraphs")
+checkpackage("xts")
+checkpackage("ggplot2")
+checkpackage("spdep")
+checkpackage("maptools")
+checkpackage("INLA")
+checkpackage("rgdal")
+```
+and load them.
+```{r, warning=FALSE}
+#Load libraries
+library("dygraphs")
+library("xts")
+library("ggplot2")
+library("spdep")
+library("maptools")
+library("INLA")
+library("rgdal")
+```
+# Datasets loading
+```{r}
+db_istat<-read.csv("https://raw.githubusercontent.com/Paolin83/COVID19_SEIR_model/master/BYM_model/Elenco-comuni-italiani2.csv",sep=";",header=T,dec=",")
+pop_provincia<-data.frame(codice_provincia=as.numeric(names(table(db_istat[,3]))),pop=tapply(db_istat[,20],db_istat[,3],sum))
+###import international dataset
+dat_int<-read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv",header=T)
+hubei<-as.numeric(dat_int[dat_int$Province.State=="Hubei",5:dim(dat_int)[2]])
+
+###import updated italian dataset  for each province
+dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-province/dpc-covid19-ita-province.csv",header=T)
+dat_csv<-merge(dat_csv,pop_provincia,by=c("codice_provincia"),all.y=TRUE)
+dat_csv<-dat_csv[dat_csv$codice_provincia<112,]
+#select a Region, in this example "Veneto" Code region 3
+Region<-5
+dat_csv<-dat_csv[dat_csv$codice_regione==Region,]
+dat_csv$denominazione_provincia<-droplevels(dat_csv$denominazione_provincia)
+#### number of province
+nprov<-length(table(dat_csv$denominazione_provincia)[table(dat_csv$denominazione_provincia)>0])
+
+#order the obsercation for date and space, useful for INLA later....
+dat_csv<-dat_csv[order(dat_csv$data),]
+dat_csv<-dat_csv[order(dat_csv$codice_provincia),]
+###space ID
+dat_csv$ID<-as.factor(dat_csv$codice_provincia)
+levels(dat_csv$ID)<-1:length(levels(dat_csv$ID))
+dat_csv$ID<-as.numeric(dat_csv$ID)
+#calculate new_cases Y ~ Poi(mu)
+dat_csv$cumulative_cases<-dat_csv$totale_casi
+dat_csv$totale_casi[dat_csv$data!="2020-02-24 18:00:00"]<-unlist(tapply(dat_csv$totale_casi,dat_csv$ID,diff))
+dat_csv$totale_casi[dat_csv$totale_casi<0]<-0
+#import dataset shapefile Italian province and adjancies matrix
+#### IMPORTANT, SET THE Work Directory of the shapefile 
+nc.province <- readShapePoly("BYM_model/ProvCM01012019_g/ProvCM01012019_g_WGS84.shp")
+nc.province<-nc.province[nc.province$COD_REG==Region,]
+nc.province<-nc.province[order(nc.province$COD_PROV),]
+nc.province$ID<-as.factor(nc.province$COD_PROV)
+levels(nc.province$ID)<-1:length(levels(nc.province$ID))
+nc.province$ID<-as.numeric(nc.province$ID)
+#Create adjacency matrix
+nc.nb <- poly2nb(nc.province,snap=0.01)
+nb2INLA("nc.adj", nc.nb)
+file.adj <- "nc.adj"
+################################
+```
+
+# Spatial analysis with R-INLA and BYM 
+We modelled COVID 19 cases by means of a BYM (Besag, York and Molli\'e) model using an Integrated Nested Laplace Approximation (INLA).  
+* Starting phase
+
+For the $i$-th Nuts-3 Region (Italian province), the observed number of COVID19, $y_{i}$, was modelled as follows:  
+
+$$
+  Y_i|\lambda_i\sim \mbox{Poisson}(\lambda_i), \qquad i=1,2,\ldots \\
+$$
+
+and $\lambda_i>0$. We modelled the incidence of COVID-19 by means of a BYM model including the population size as offset variable as:
+
+$$
+ log(\frac{\lambda_{i}}{N_{i}})=\alpha+\mu_i+\nu_i, \\
+$$
+where $\alpha$ is the intercept, $\mu_i$ and $\nu_i$ are two area specific effects with normal distribution modelled using an intrinsic conditional autoregressive structure (iCAR) and $N_i$ is the population size of each NUTS-3 Region.   
+
+The parameter were estimated by INLA (Integrated Nested Laplace Approximation) and R software.  
+
+```{r}
+nomi_prov<-levels(dat_csv$denominazione_provincia)
+barplot(tapply(dat_csv$totale_casi,dat_csv$denominazione_provincia,sum),names =1:nprov,args.legend = list(x = "topright"),legend.text =paste(1:nprov,nomi_prov),ylab="Number fo cases")
+```
+The number of observed cases $y_i$ is very different among  NUTS-3 regions.  
+
+```{r}
+pop<-tapply(dat_csv$pop,dat_csv$denominazione_provincia,mean)
+barplot(tapply(dat_csv$totale_casi,dat_csv$denominazione_provincia,sum)/pop*1000,names =1:nprov,args.legend = list(x = "topright"),legend.text =paste(1:nprov,nomi_prov),ylab="Number of cases x 1.000 inhabitants")
+```
+A correct comparison is the made by incidence cases $y_i/N_i$, here riported for x1000 inhabitants. 
+#Spatial model 
+We estimate a BYM model fixing prior distributions for iid and besag components as follows:
+```{r}
+prior.iid = c(1,0.01)
+prior.besag = c(1,0.001)
+initial.iid = 4
+initial.besag = 3
+```
+We create new variables that are required by INLA procedure. 
+```{r}
+##########################indexing, for 
+#### number of days
+dat_csv$t<-as.numeric(dat_csv$data)
+days<-max(dat_csv$t)
+dat_csv$t3<-dat_csv$t2<-dat_csv$t
+#### province
+dat_csv$ID2<-dat_csv$ID
+########################## formula BYM
+formula.bym= totale_casi ~ 1+f(ID, model = "bym", graph = file.adj, param = c(prior.iid, prior.besag), initial = c(initial.iid, initial.besag))
+fit_1<-inla(formula.bym, family="poisson", data=dat_csv, E=pop,control.compute = list(dic=T))
+summary(fit_1)
+##incidence rate ratio for each province
+IRR_mean <- exp(fit_1$summary.random$ID$mean[1:nprov])
+nc.province$IRR_mean<-IRR_mean
+spplot(nc.province, c( "IRR_mean"),main="Incidence Rate Ratios")
+nomi_prov
+```
+The image reported the IRR=exp($\mu_i$), the increase of the Incidence of Covid-19 in each NUTS-3 Region respect to the overall mean.  
+
+#Temporal model 
+We consider the temporal aspect estimating a Bayesian RW2 model to model the temporal trend of COVID-19 in the reported temporal window. The observed number of COVID-19 a the time $t$, $y_{t}$, is modelled as follows  
+$$
+  Y_t|\lambda_t\sim \mbox{Poisson}(\lambda_t), \qquad t=i,2,\ldots \\
+$$
+
+	
+with t=1,...,T, the quantity $\lambda_{t}$, is modelled by a Random Walk of order 2 (RW2) variable  
+$$
+  log{\lambda_{it}}=\alpha+\gamma_t+\phi_t,  \\
+$$
+
+where $\alpha$ is the intercept, $\gamma_t \sim RW2$  are the coefficients related to the random walk process while $\phi_t \sim N(0, \tau_t^{-1})$ are the temporal specific random errors.  
+
+```{r}
+Date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+days-1,1)
+plot(Date,tapply(dat_csv$totale_casi,dat_csv$t,sum),xlab="Date",ylab="New cases",type="l")
+points(Date,tapply(dat_csv$totale_casi,dat_csv$t,sum))
+formula_t = totale_casi ~ 1+f(t,model="rw2", constr = FALSE)+f(t2,model="iid")
+fit_2<-inla(formula_t, family="poisson", data=dat_csv,control.compute = list(dic=T))
+summary(fit_2)
+##Incidence rate ratios, increase od cases respect to time 1
+plot(Date,exp(fit_2$summary.random$t$mean),ylab="temporal IRR",xlab="Date")
+
+label<-Date
+
+
+mean  <- exp(fit_2$summary.random$t$mean[1:days]+fit_2$summary.fixed$mean)*nprov
+lower <- exp(fit_2$summary.random$t$mean[1:days]-1.96*fit_2$summary.random$t$sd[1:days]+fit_2$summary.fixed$mean)*nprov
+upper <- exp(fit_2$summary.random$t$mean[1:days]+1.96*fit_2$summary.random$t$sd[1:days]+fit_2$summary.fixed$mean)*nprov
+
+df <- data.frame(label, mean, lower, upper)
+
+
+fp <- ggplot(data=df, aes(x=label, y=mean, ymin=lower, ymax=upper)) +
+  geom_pointrange() +
+  geom_hline(yintercept=1, lty=2) +  # add a dotted line at x=1 after flip
+  xlab("Date") + ylab("Estimated new cases") +
+  theme_bw() 
+print(fp)
+
+```
+We now consider a BYM model with spatial and temporal components and their complete interactions (Type IV). The observed number of COVID-19, $y_{it}$, was modelled as:  
+$$
+  Y_{it} \sim Poisson (\lambda_{it}),  \\
+$$
+
+
+with i=1,...,`r nprov`and t=1,...,`r days`.  
+We modelled the ratio $\frac{\lambda_{it}}{N_{i}}$, the Incidence of COVID-19, with a BYM model including temporal covariates as follows
+$$
+  log(\frac{\lambda_{it}}{N_{i}})=\alpha+\mu_i+\nu_i+\gamma_t+\phi_t+\delta_{it},  \\
+$$
+  where $\alpha$ is the intercept and:  
+  
+*	space: $\mu_i$ and $\nu_i$ are two area specific effects with normal distribution modelled using an intrinsic conditional autoregressive structure (iCAR);  
+
+*	time:$\gamma_t \sim RW2$  are the coefficients related to the random walk process, while $\phi_t \sim N(0, \tau_t^{-1} )$ are the temporal specific random errors.  
+
+*	space-time: $\delta_{it}$ are the coefficients related space-time interactions that in the its type 4 formulation (please see Spatial and Spatio-temporal Bayesian Models with R - INLA, Blangiardo and Cameletti) is made by the Kronecker product of time and space indexes.  
+
+
+```{r}
+####specification
+formula.intIV<- totale_casi ~f(ID,model="bym",graph=file.adj) +
+  f(t,model="rw2",constr = FALSE) +
+  f(t2,model="iid") +
+  f(ID2,model="besag", graph=file.adj,
+    group=t3,
+    control.group=list(model="rw2"))
+#estimation
+fit_st4<-inla(formula.intIV, family="poisson", data=dat_csv, E=pop,control.compute = list(dic=T))
+summary(fit_st4)
+```
+   
+The time and space component mean estimates can be extracted here  
+
+```{r}
+#overall trend
+t_1<-fit_st4$summary.random$t$mean 
+#iid trend
+t_2<-fit_st4$summary.random$t2$mean 
+ # spatial iCAR component
+s_1<-fit_st4$summary.random$ID$mean[1:nprov]
+# spatial idd
+s_2<-fit_st4$summary.random$ID$mean[(nprov+1):(nprov*2)] 
+#spatio-temporal model with car and ar1 specification
+st<-fit_st4$summary.random$ID2$mean 
+```
+  
+When can represent the IRR(=exp($\mu_i+\frac{1}{T} \sum_{i=t}^{T} \delta_{it}$)) for each NUTS-3 regions.  
+  
+```{r}
+nc.province$IRR_st<-exp(s_1+apply(t(matrix(st,nrow=nprov)),2,mean))
+l1 = list("sp.text", coordinates(nc.province), nc.province$DEN_PROV,col="grey", cex=0.7,font=2)
+spplot(nc.province, c( "IRR_st"),main="IRR", sp.layout=list(l1))
+```
+  Trend for each province is reported below.  
+  
+```{r}
+##overall trend
+plot(Date,exp(t_1),ylab="IRR",main="Overall time trend")
+
+## time trend for each province
+db_plot<-data.frame(t_1+t(matrix(st,nrow=nprov)))
+names(db_plot)<-nc.province$DEN_PROV
+names(db_plot)[4]<-"Venezia"
+province_trend<-xts(db_plot, order.by = Date, frequency = 7)
+p <- dygraph(province_trend,main=paste("Veneto Region",sep =""),xlab="Day",height=400,width=800,ylab= "Province trends") 
+p
+
+#space time variation for each province from overall trend
+db_plot<-data.frame(t(matrix(st,nrow=nprov)))
+names(db_plot)<-nc.province$DEN_PROV
+names(db_plot)[4]<-"Venezia"
+province_trend<-xts(db_plot, order.by = Date, frequency = 7)
+p <- dygraph(province_trend,main=paste("Veneto Region Region",sep =""),xlab="Day",height=400,width=800,ylab= "Delta coefficient") 
+p
+```
+
+#Predictions 3 days forward of new COVID-19 cases
+We made a forecast of 3 days forward on the number of COVID19 by means of BYM model and considering as covariate the number of Hubei epidemic lagged of 8 days because the different moment of restrictive measures between Italy and Hubei.
+```{r}
+Forecast=3
+dat_csv2<-dat_csv 
+dat_csv2$t<-rep(1:days+days,nprov)
+dat_csv2$totale_casi<-NA
+dat_csv2<-dat_csv2[dat_csv2$t<=(days+Forecast),]
+dat_csv_n<-rbind(dat_csv,dat_csv2)
+dat_csv_n$t3<-dat_csv_n$t2<-dat_csv_n$t
+#introducting hubei starting on 22/01, quarantine started on 25/01
+# applying a smoothing , data has errors
+hubei_new_cases<-filter(diff(hubei), rep(1, 5))
+
+plot(hubei/58.5,type="l",ylab="COVID19 cases for milion of inhabitant",ylim=c(0,1530),xlab="Days since over 100 cases")
+lines(c(rep(NA,2),cumsum(tapply(dat_csv_n$totale_casi,dat_csv_n$t,sum))/10),col=2)
+abline(v=2,col=1,lty=2)
+abline(v=4,col=2,lty=2)
+abline(v=10,col=3,lty=3)
+legend("bottomright",c("Hubei","Veneto Region"),lty=1,col=1:2)
+text(10,1500,"Hubei quarantine")
+text(12,1350,"Lodi home lock",col=2)
+text(20,1200,"Veneto home lock",col=3)
+#province of lodi restrictive measure started on 24/02 lag 28 days, at the beginning of the time series
+#other provinces on 11/03 lagged started their restrictions
+hubei_lodi<-hubei_new_cases[1:(days+Forecast)]
+hubei_others<-c(rep(NA,8),hubei_new_cases[1:(days+Forecast-8)])
+dat_csv_n<-dat_csv_n[order(dat_csv_n$codice_provincia,dat_csv_n$t),]
+dat_csv_n$hubei<-rep(hubei_others,nprov)
+#overdispersion
+dat_csv_n$over<-1:dim(dat_csv_n)[1]
+```
+We model the number of cases.   
+
+In the rw2 I set constr = FALSE is set to FALSE and that, for this reason, the intercept is not included in the linear predictor. 
+```{r}
+## include overdispersion parameter
+formula.intIVn<- totale_casi ~ log(hubei+1)+log(pop)+
+  f(t,model="rw2", constr = FALSE) +
+  f(t2,model="iid") +f(over,model="iid") +
+f(ID,model="bym",graph=file.adj) +
+  f(ID2,model="besag", graph=file.adj,
+    group=t3,
+    control.group=list(model="rw2"))+ f(over,model="iid") 
+
+fit_st4n<-inla(formula.intIVn, family="poisson", data=dat_csv_n,control.compute = list(dic=T),control.predictor = list(link = 1))
+summary(fit_st4n)
+```
+
+```{r}
+#### components
+#overall trend
+t_1<-fit_st4n$summary.random$t$mean 
+#iid trend
+t_2<-fit_st4n$summary.random$t2$mean 
+ # spatial CAR componen
+s_1<-fit_st4n$summary.random$ID$mean[1:nprov]
+# spatial idd
+s_2<-fit_st4n$summary.random$ID$mean[(nprov+1):(nprov*2)] 
+# spatio-temporal coefficients 
+st<-fit_st4n$summary.random$ID2$mean 
+## Trends for province
+Date_n<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+days+Forecast-1,1)
+## time trend for each province
+db_plot<-data.frame(t_1+t(matrix(st,nrow=nprov)))
+names(db_plot)<-nc.province$DEN_PROV
+names(db_plot)[4]<-"Milano"
+province_trend<-xts(db_plot, order.by = Date_n, frequency = 7)
+p <- dygraph(province_trend,main=paste("Veneto Region",sep =""),xlab="Day",height=400,width=800,ylab= "Province trends") 
+p
+
+#space time variation for each province from overall trend
+db_plot<-data.frame(t(matrix(st,nrow=nprov)))
+names(db_plot)<-nc.province$DEN_PROV
+names(db_plot)[4]<-"Venezia"
+province_trend<-xts(db_plot, order.by = Date_n, frequency = 7)
+p <- dygraph(province_trend,main=paste("Veneto Region",sep =""),xlab="Day",height=400,width=800,ylab= "Delta coefficient") 
+p
+#extract number of cases for Verona
+
+#### FOR Verona as for example
+est_verona<-fit_st4n$summary.fitted.values[dat_csv_n$denominazione_provincia=="Verona",]
+
+
+days.before<-Date_n[1:days]
+days.ahead<-Date_n[(days+1):(days+Forecast)]
+mu.lower<-est_verona$mean-1.96*est_verona$sd
+mu.lower[mu.lower<0]<-0
+mu.upper<-est_verona$mean+1.96*est_verona$sd
+mu.med<-xts(est_verona$mean,order.by = c(days.before,days.ahead),frequency = 7)
+counts<-mu.med
+step.ahead<-Forecast
+mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
+p <- dygraph(mu,main=paste("Verona (Credible Interval ",100*0.95,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
+p
+```
+

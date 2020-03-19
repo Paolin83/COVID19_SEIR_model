@@ -23,7 +23,7 @@ hubei<-as.numeric(dat_int[dat_int$Province.State=="Hubei",5:dim(dat_int)[2]])
 dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-province/dpc-covid19-ita-province.csv",header=T)
 dat_csv<-merge(dat_csv,pop_provincia,by=c("codice_provincia"),all.y=TRUE)
 dat_csv<-dat_csv[dat_csv$codice_provincia<112,]
-#select a Region, in this example "Lombardia" Code region 3
+#select a Region, in this example "Lombardia" Code region 3, Veneto 5
 Region<-5
 dat_csv<-dat_csv[dat_csv$codice_regione %in% Region,]
 dat_csv_n$denominazione_provincia<-droplevels(dat_csv_n$denominazione_provincia)
@@ -104,6 +104,8 @@ formula.intIV<- totale_casi ~f(ID,model="bym",graph=file.adj) +
 #estimation
 fit_st4<-inla(formula.intIV, family="poisson", data=dat_csv, E=pop,control.compute = list(dic=T))
 summary(fit_st4)
+fit_st4<-inla(formula.intIV, family="poisson", data=dat_csv,control.compute = list(dic=T))
+summary(fit_st4)
 
 #### components
 t_1<-fit_st4$summary.random$t$mean #overall trend
@@ -117,6 +119,14 @@ spplot(nc.province, c( "IRR_st"),main="IRR")
 ## Trends for province
 
 trends<-t_1+t(matrix(st,nrow=nprov))
+R0_vec<-NULL
+for ( i in 1:nprov){
+  R0_vec<-c(R0_vec,coef(lm(trends[10:days,i]~I(10:days)))[2]*14+1)
+}
+
+nc.province$R0<-R0_vec
+spplot(nc.province, c( "R0"),main="R0, since 5/03")
+
 # trends+ specific
 matplot(trends)
 #specific for each province
@@ -180,6 +190,7 @@ trends<-t_1+t(matrix(st,nrow=nprov))
 plot(Date_n,t_1,ylab="RW2 Time coefficient",xlab="Date")
 plot(Date_n,trends,ylab="RW2 Time coefficient",xlab="Date")
 matplot(trends,ylab="RW2 Time coefficient for Province",xlab="Date")
+
 
 matplot(t(matrix(st,nrow=nprov)),ylab="RW2 Time coefficient for Province",xlab="Date")
 #extract number of Verona

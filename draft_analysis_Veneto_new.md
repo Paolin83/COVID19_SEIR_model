@@ -312,16 +312,16 @@ model1 <- bsts(beta_vec,
                niter = 1000)
 ```
 
-    ## =-=-=-=-= Iteration 0 Wed Mar 18 01:38:01 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Wed Mar 18 01:38:01 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Wed Mar 18 01:38:01 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Wed Mar 18 01:38:01 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Wed Mar 18 01:38:01 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Wed Mar 18 01:38:01 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Wed Mar 18 01:38:01 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Wed Mar 18 01:38:01 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Wed Mar 18 01:38:01 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Wed Mar 18 01:38:01 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Wed Mar 18 10:10:46 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Wed Mar 18 10:10:46 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Wed Mar 18 10:10:46 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Wed Mar 18 10:10:46 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Wed Mar 18 10:10:46 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Wed Mar 18 10:10:46 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Wed Mar 18 10:10:46 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Wed Mar 18 10:10:46 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Wed Mar 18 10:10:46 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Wed Mar 18 10:10:46 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
@@ -442,5 +442,5 @@ p
 
 The 3 scenarios show different numbers. If we consider the second
 scenario at the end of the 2 weeks (2020-03-31): \* the number of
-infected is (5491.4507333). \* the total number of COVID19 cases is
-expected to be (1.008687110^{4}).
+infected is (5125.382283). \* the total number of COVID19 cases is
+expected to be (9668.1444459).
