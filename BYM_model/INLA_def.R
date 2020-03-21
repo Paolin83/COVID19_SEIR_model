@@ -24,9 +24,9 @@ dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dat
 dat_csv<-merge(dat_csv,pop_provincia,by=c("codice_provincia"),all.y=TRUE)
 dat_csv<-dat_csv[dat_csv$codice_provincia<112,]
 #select a Region, in this example "Lombardia" Code region 3
-Region<-3
-dat_csv<-dat_csv[dat_csv$codice_regione==Region,]
-dat_csv_n$denominazione_provincia<-droplevels(dat_csv_n$denominazione_provincia)
+#Region<-3
+#dat_csv<-dat_csv[dat_csv$codice_regione==Region,]
+dat_csv_n$denominazione_provincia<-droplevels(dat_csv$denominazione_provincia)
 #### number of province
 nprov<-length(table(dat_csv$denominazione_provincia)[table(dat_csv$denominazione_provincia)>0])
 
