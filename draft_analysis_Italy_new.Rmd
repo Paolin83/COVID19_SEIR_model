@@ -1,9 +1,3 @@
-```{r echo=FALSE}
-library(knitr)
-knitr::opts_chunk$set(echo = FALSE)
-knitr::opts_knit$set(root.dir= normalizePath('..'))
-knitr::opts_chunk$set(error = FALSE)
-```
 ---
 title: "COVID19 - Forecast and predictions using a time dependent SEIR model - Italy"
 author: "Paolo Girardi"
@@ -59,6 +53,7 @@ checkpackage("EpiDynamics")
 checkpackage("webshot")
 checkpackage("bsts")
 checkpackage("ggplot2")
+checkpackage("knitr")
 ```
 and load them.
 ```{r, warning=FALSE}
@@ -69,6 +64,7 @@ library(webshot)
 library(bsts)
 library(EpiDynamics)
 library(ggplot2)
+library(knitr)
 ```
 
 # Source of the data 
