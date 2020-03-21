@@ -21,7 +21,7 @@ pdf_document:
 
 * Our point of view is that of surveillance with the goal of detecting important changes in the underlying (random) process as soon as possible after it has occured.
 
-* We use data provided by  Italian Civil Protection Department and the analysis was restricted to the Veneto Rego
+* We use data provided by  Italian Civil Protection Department and the analysis was restricted to the Veneto Region
 
 * This document is in a draft mode, and it is continuously updated.
 
@@ -125,7 +125,7 @@ p
 
 With the aim of predicting the future number of COVID19 cases on the
 basis of the actual data, we used a SEIR model applied to the COVID19
-epidemic to the Veneto Region in Italy
+epidemic to the Veneto Region 
 
 We will consider  the classical [SIR model](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology) [@Kermack1927].
 
@@ -141,7 +141,7 @@ $$\begin{aligned}
 \frac{d}{dt}R(t) &= \gamma\,I(t)-\mu\,R(t).\\
 \end{aligned}$$
 Here, $B$ is the crude birth rate (births per unit time), $\mu$ is the death rate and $\gamma$ is the recovery rate.
-We'll assume that the force of infection, $\lambda$, for a constant population $N$
+We'll assume that the force of infection, $\beta$, for a constant population $N$
 $$\lambda = \beta\,\frac{I}{N},$$
 so that the risk of infection a susceptible faces is proportional to the *prevalence* (the fraction of the population that is infected).
 This is known as the assumption of frequency-dependent transmission.
@@ -194,17 +194,19 @@ $$
 $$
 where $\beta_1$ is the slope coefficient. \\
 
-The incubation period $1/ \gamma$ for the coronavirus is in mean 5.1 days with a range from 2-14 days. Please see https://www.worldometers.info/coronavirus/coronavirus-incubation-period/. However, the incubation period is used for epidemic diseases that causes the immediate home isolation of infected subjects.  
+The incubation period  for the coronavirus is in mean 5.1 days with a range from 2-14 days. Please see https://www.worldometers.info/coronavirus/coronavirus-incubation-period/. However, the incubation period is used for epidemic diseases that causes the immediate home isolation of infected subjects. The duration of the diseases is about 2 weeks.
 
-In the calculation we considered an "incubation period" of 14 days for two reasons:  
-1) the majority of cases is asymptomatic, contagiousness is greater than 5, maybe 14. A minority (who made the swab) will have a duration of about 5 days between the start of contagiousness and swab; 
-2) 14 days is the worst scenario because in this period low impact COVID19 symptoms can be confused with the concomitant FLU epidemic (https://www.webmd.com/lung/news/20200310/know-the-symptoms-of-covid19).  
+However, in the calculation of R0 we considered an infectious period of 21 days for two reasons:  
+1) the majority of cases is asymptomatic;
+2) 21 days is the worst scenario because in this period COVID19 symptoms can be confused with the concomitant FLU epidemic (https://www.webmd.com/lung/news/20200310/know-the-symptoms-of-covid19).  
+
 
 We calculate several R0 values, each one based on a mobile window of 5 days, that can be sufficient to estimate a local trend, in order to assess if the R0 trend is decreasing (how is expected to be). In this way, the R0 for the first and the last two days of observation is impossibile to estimate.
 
 ```{r R0 trend}
 #calculate r0 based with a mobile window of 5 days
 #vector for beta and standard deviation
+duration<-21
 beta_vec<-NULL
 sd_vec<-NULL
 #for cycle for R0 estimates from days-2 to days+2
@@ -217,9 +219,9 @@ sd_vec<-c(sd_vec,coef(summary(fit))[2,2])
 label<-as.Date(substr(dat_csv$data,1,10))[3:(days-2)]
 
 
-mean  <- 1+(beta_vec*14)
-lower <- 1+((beta_vec-1.96*sd_vec)*14)
-upper <- 1+((beta_vec+1.96*sd_vec)*14)
+mean  <- 1+(beta_vec*duration)
+lower <- 1+((beta_vec-1.96*sd_vec)*duration)
+upper <- 1+((beta_vec+1.96*sd_vec)*duration)
 
 df <- data.frame(label, mean, lower, upper)
 
@@ -247,7 +249,7 @@ date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast-1+dim(dat_csv)[1]
 predict <- data.frame(beta_vec=c(beta_vec,rep(NA,forecast+4)),time=date,fit=pre$fit,lwr=pre$fit-1*1.96*pre$se.fit,upr=pre$fit+1*1.96*pre$se.fit)
 beta.predict<-predict 
 r0.predict<-beta.predict
-r0.predict[,c(1,3:5)]<-r0.predict[,c(1,3:5)]*14+1
+r0.predict[,c(1,3:5)]<-r0.predict[,c(1,3:5)]*21+1
 # plot the points (actual observations), regression line, and confidence interval
 p <- ggplot(r0.predict, aes(date,beta_vec))
 p <- p + geom_point() +labs(x="Date",y="R0 value") 
@@ -257,49 +259,125 @@ p
 ```   
 
 R0 passes from a value of `r round(r0.predict[1,1],2)`   in the initial phase to an  estimated value of `r round(r0.predict[days+forecast,3],2)` at the ending of the 14-days forecast.  
+We use the library(EpiDynamics) and the function SEIR() to implement a SEIR model:  
 
-We want to make a short term forecast (14 days) with 3 scenario, based on the number of exposed people:   
+$$\begin{aligned}
+\frac{d}{dt}S(t) &= \mu (N-S)-\beta \frac{SI}{N}-\nu S\\  
+\frac{d}{dt}E(t) &= \beta \frac{SI}{N}-(\mu+\sigma) E    \\
+\frac{d}{dt}I(t) &=\sigma E- (\mu+\gamma)I \\
+\frac{d}{dt}R(t) &= \gamma\,I(t)-\mu\,R(t)+\nu S.\\
+\end{aligned}$$
 
--Scenario 1: 10 exposed people for each COVID-19 case (no home restrictions made or even no effects)  
+<img src="https://upload.wikimedia.org/wikipedia/commons/3/3d/SEIR.PNG"/> 
 
--Scenario 2: 5 exposed people for each COVID-19 case (-50% exposed people)  
+Respect to the previous formulation, the compartment of exposed people (E) was inserted between the susceptible and infected compartments.  
+(https://en.wikipedia.org/wiki/Bayesian_structural_time_series).
+The parameter $\nu$ is the rate of vaccination.
 
--Scenario 3: 3 exposed people for each COVID-19 case  (-70% exposed people)
+We want to make a short term forecast (14 days).
 
-We made a forecast by means of a SEIR model fixing a series of initial status:  
-- S0=N, the size of Veneto Region population   
-- E= f * I_start (with f a fixed factor of the previous scenario)  
-- I_start: initial number of COVID-19 cases  
-- R_start: initial number of recovered   
-  
+We made a forecast by means of a SEIR model fixing a series of initial status:
+*S:N, the size of the Veneto Region population  
+*E: The number of exposed people (unknown)  
+*I_start: initial number of COVID-19 cases     
+*R_start: initial number of recovered  
+
 and parameters:  
 - beta: gamma + slope
-- gamma= 1/duration (rate of infection duration of COVID-19, duration=14 days)  
-- sigma0: the coronavirus transmission rate (half of flu epidemic)   
-- mu0: the overall mortality rate    
+- gamma= 1/duration of diseases (duration=21 days)
+- sigma: the coronavirus transmission rate 
+- mu0: the overall mortality rate     
 
-```{r initation plot, echo=TRUE}
+
+```{r ini parameters plot, echo=TRUE}
 # initial number of infectus
 I_start<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I_start
-# initial number of recovered
-R_start<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]; R_start
-# Veneto Region population
-N=4905854
-# duration of COVID19 
-duration<-14
-#sigma0 is the coronavirus transmission rate fixed to 5%  (half of flu epidemic)
-sigma0<-0.05
+# initial number of recovered, based on the proportion of discharged from the health services
+prop<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]/dat_csv$totale_ospedalizzati[dim(dat_csv)[1]]
+R_start<-prop*dat_csv$totale_casi[dim(dat_csv)[1]]; R_start
+# Veneto population
+N=4905864
+# duration of COVID19 as the sum of incubation (5-14 days) and the duration of diseases (about 20 days)
+duration<-21
 #mortality rate 
 mu0<-1/(82*365.25) # 1/lifespan
 ```
-We use the library(EpiDynamics) and the function SEIR() to implement a SEIR model:  
 
-<img src="http://www.public.asu.edu/~hnesse/classes/seireqn.png"/>  
-<img src="https://upload.wikimedia.org/wikipedia/commons/3/3d/SEIR.PNG"/>  
-Respect to the previous formulation, the compartment of exposed people (E) was inserted between the susceptible and infected compartments.  
-(https://en.wikipedia.org/wiki/Bayesian_structural_time_series)  
+We try to estimates sigma (from exposed to infected) and the number of exposed population on the basis of the last 5 days of observed number of total infected people.  
 
-We perfom simulation on the trend of beta coefficient by means of a Bayesian Structural Time Series using the library bsts of R.    
+We suppose that the number of total infected $I(t)$ can be the realization of a Poisson random variable
+$$
+I(t) \sim Poisson (\theta_t)
+$$
+where $\theta_t$ is the unknown mean of the random process at the time $t$.  
+
+The Poisson distribution has a fixed variance that is equal to the mean; in the next part we try to estimates the parameters considering a Negative Binomial distribution which allows for overdispersion.  
+
+However, the parameter $\theta_t$ can be supposed to be a realization of a SEIR model with initial parameters $\theta=(\mu,\beta,\sigma, \gamma)$  and initial status $S=(S_{start},E_{start},I_{start},R_{start})$.  
+
+
+The parameter $\sigma$ and the fraction of exposed people ($E_{start}$) are our parameters of interest; we estimate $\sigma$ and $E_{start}$ minimizing the log likelihood of the described Poisson distribution (or Negative Binomial one).  
+
+```{r estimation of gamma and exposed, echo=TRUE}
+# number of the last considered days for calibration
+last<-5
+#I_start
+I_1<-dat_csv$totale_attualmente_positivi[(days-last)]
+#R_start
+R_1<-prop*dat_csv$totale_casi[(days-last)]
+#loglikelihood function
+LogLikfun <- function (initials,parameters,obs) {
+n<-length(obs)
+N=4905864
+seir_fit <- SEIR(pars = parameters, init = initials, time = 0:last)
+#Poisson
+#sum(dpois(x=obs[-1],lambda = seir_fit$results$I[-1]*N,log=TRUE))
+#Neg Binomial
+sum(dnbinom(x=obs[-1],mu=seir_fit$results$I[-1]*N,size=N,log=TRUE))
+#SSE
+#-sum((obs[-1]-seir_fit$results$I[-1]*N)^2)
+}
+### logit and its inverse for sigma 
+logit <- function (p) log(p/(1-p))    # the logit transform
+expit <- function (x) 1/(1+exp(-x))   # inverse logit
+
+f1<-function(par){
+f_exp<-expit(par[1])
+sigma<-expit(par[2])
+parameters <- c(mu = mu0, beta =(mean(beta_vec[1:(days-last-4)])+1/duration), sigma = sigma, gamma =1/duration)
+initials <- c(S = (1-(f_exp+I_1/N-R_start/N)), E = f_exp, I = I_1/N, R = R_1/N)
+-LogLikfun(initials,parameters,dat_csv$totale_attualmente_positivi[c((days-last):days)])
+}
+est<-optim(fn=f1,par=c(logit(0.0005),logit(0.1)))
+#estimated par
+expit(est$par)
+f_exp<-expit(est$par[1])
+sigma<-expit(est$par[2])
+parameters <- c(mu = mu0, beta =(mean(beta_vec[1:(days-last-4)])+1/duration), sigma = sigma, gamma = 1/duration)
+initials <- c(S = (1-(f_exp+I_1/N-R_1/N)), E = f_exp, I = I_1/N, R = R_1/N)
+pro<-SEIR(pars = parameters, init = initials, time = 0:last)
+#predicted vs observed
+cbind(pro$results$I*N,dat_csv$totale_attualmente_positivi[c((days-last):days)])
+```
+
+The values of initial parameters are
+```{r ini parameters, echo=TRUE}
+#mu0
+mu0;
+#sigma
+sigma
+#gamma
+1/duration
+```
+
+```{r status, echo=TRUE}
+#mthe unknowrn fraction of exposed people is
+f_exp;
+#that is 
+f_exp/(I_1/N)
+#times the infected
+```
+For the beta parameter, we perfom a simulation on its trend by means of a Bayesian Structural Time Series using the library bsts of R.    
 We estimate a BSTS model specifing a local linear trend ans 1000 simulation.  
 
 We made a forecast forward of 14 days dropping the first 100 simulation as burn-in.   
@@ -320,42 +398,29 @@ plot(pred1 , ylab="Beta1 coefficient",main="Data and predictions")
 coef<-(pred1$distribution[,3:16])
 par(mfrow = c(1,1))
 ```
-For each vectors of simulated beta coefficients we perform a SEIR model (one for each scenario).  
+For each vector of simulated beta coefficients we perform a SEIR model.
 We save the results and plot a credible interval at 50% (25-75% percentile).
 
 ```{r  scenario plot , echo=TRUE}
-
-seir1_sim<-seir2_sim<-seir3_sim<-NULL
+seir1_sim<-NULL
 for(s in 1:dim(coef)[1]){
   # average number of single connections of an infected person
   # less contacts, less probability of new infections
   # we keep constant the other parameters
   forecast<-14
-  seir1<-seir2<-seir3<-NULL
+  seir1<-NULL
   for(i in 1:forecast){
-    parameters <- c(mu = mu0, beta = (matrix(coef[s,i])+1/duration), sigma = sigma0, gamma = 1/duration)
-    f1<-10
-    if( i==1) initials <- c(S = 1-((1+f1)*I_start/N)-R_start/N, E = (f1*I_start/N), I = I_start/N, R = R_start/N)
+    parameters <- c(mu = mu0, beta = (matrix(coef[s,i])+1/duration), sigma = sigma, gamma = 1/duration)
+    if( i==1) initials <- c(S = 1-(f_exp+I_start/N+R_start/N), E = f_exp, I = I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
     seir1_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir1 <- rbind(seir1,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
-    f2<-5
-    if( i==1) initials <- c(S = 1-((1+f1)*I_start/N)-R_start/N, E = (f2*I_start/N), I =  I_start/N, R = R_start/N)
-    if( i>1) initials <- c(S = seir2_temp$results$S[2], E = seir2_temp$results$E[2], I =seir2_temp$results$I[2], R = seir2_temp$results$R[2])
-    seir2_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
-    seir2 <- rbind(seir2,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
-    f3<-3
-    if( i==1) initials <- c(S = 1-((1+f1)*I_start/N)-R_start/N, E = (f3*I_start/N), I =  I_start/N, R = R_start/N)
-    if( i>1) initials <- c(S = seir3_temp$results$S[2], E = seir3_temp$results$E[2], I =seir3_temp$results$I[2], R = seir3_temp$results$R[2])
-    seir3_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
-    seir3 <- rbind(seir3,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
   }
   seir1_sim<-rbind(seir1_sim,cbind(rep(s,forecast),seir1))
-  seir2_sim<-rbind(seir2_sim,cbind(rep(s,forecast),seir2))
-  seir3_sim<-rbind(seir3_sim,cbind(rep(s,forecast),seir3))
+
 }
-seir1_sim[,2]<-seir2_sim[,2]<-seir3_sim[,2]<-rep(1:forecast,dim(coef)[1])
-colnames(seir1_sim)[1]<-colnames(seir2_sim)[1]<-colnames(seir3_sim)[1]<-"sim"
+seir1_sim[,2]<-rep(1:forecast,dim(coef)[1])
+colnames(seir1_sim)[1]<-"sim"
 
 ### confidence limits
 I_seir_med<-tapply(seir1_sim$I,seir1_sim$time,median)
@@ -370,40 +435,25 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Veneto Region: Scenario 1 (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
-p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
-p
-
-### confidence limits - scenario 2
-I_seir_med<-tapply(seir2_sim$I,seir2_sim$time,median)
-I_seir_lwr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.25)
-I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.75)
-
-mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
-mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
-mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
-counts<-mu.med
-mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Veneto Region: Scenario 2  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
-p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
-p
-
-### confidence limits - scenario 3
-I_seir_med<-tapply(seir3_sim$I,seir3_sim$time,median)
-I_seir_lwr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=0.25)
-I_seir_upr<-tapply(seir3_sim$I,seir3_sim$time,quantile,p=0.75)
-
-
-mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
-mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
-mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
-counts<-mu.med
-mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Veneto Region: Scenario 3  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
 
-The 3 scenarios show different numbers. 
-If we consider the second scenario at the end of the 2 weeks (`r date[length(date)]`):
-* the number of infected is  (`r (tapply(seir2_sim$I,seir2_sim$time,median)*N)[forecast]`). * the total number of COVID19 cases is expected to be  (`r (tapply(seir2_sim$I,seir2_sim$time,median)*N+tapply(seir2_sim$R,seir2_sim$time,median)*N)[forecast]`).  
+At the end of the 2 weeks (`r date[length(date)]`):
+*the number of infected is  (`r (tapply(seir1_sim$I,seir1_sim$time,median)*N)[forecast]`).
+
+*the total number of COVID19 cases is expected to be  (`r (tapply(seir1_sim$I,seir1_sim$time,median)*N+tapply(seir1_sim$R,seir1_sim$time,median)*N)[forecast]`).  
+
+
+
+The estimated (median) numbers of the current scenario by date are:
+```{r  scenario numbers, echo=TRUE}
+S_seir_med<-tapply(seir1_sim$S,seir1_sim$time,median)
+E_seir_med<-tapply(seir1_sim$E,seir1_sim$time,median)
+R_seir_med<-tapply(seir1_sim$R,seir1_sim$time,median)
+forecast<-data.frame(S_seir_med,E_seir_med,I_seir_med,R_seir_med)*N
+colnames(forecast)<-c("Susceptible","Exposed","Infected","Removed")
+rownames(forecast)<-days.ahead
+kable(forecast)
+```

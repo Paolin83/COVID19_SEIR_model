@@ -237,7 +237,7 @@ $$
 ```{r}
 ####specification
 formula.intIV<- totale_casi ~f(ID,model="bym",graph=file.adj) +
-  f(t,model="rw2",constr = FALSE) +
+  f(t,model="rw2") +
   f(t2,model="iid") +
   f(ID2,model="besag", graph=file.adj,
     group=t3,

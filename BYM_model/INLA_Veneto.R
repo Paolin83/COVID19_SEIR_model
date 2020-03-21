@@ -26,7 +26,7 @@ dat_csv<-dat_csv[dat_csv$codice_provincia<112,]
 #select a Region, in this example "Lombardia" Code region 3, Veneto 5
 Region<-5
 dat_csv<-dat_csv[dat_csv$codice_regione %in% Region,]
-dat_csv_n$denominazione_provincia<-droplevels(dat_csv_n$denominazione_provincia)
+dat_csv$denominazione_provincia<-droplevels(dat_csv_n$denominazione_provincia)
 #### number of province
 nprov<-length(table(dat_csv$denominazione_provincia)[table(dat_csv$denominazione_provincia)>0])
 
@@ -96,7 +96,7 @@ plot(Date,exp(fit_2$summary.random$t$mean),ylab="Indicence of cases",xlab="Date"
 ####interaction model type 4 (complete time trend interaction to estimate specific curves for each province)
 ####specification
 formula.intIV<- totale_casi ~f(ID,model="bym",graph=file.adj) +
-  f(t,model="rw2",constr = FALSE) +
+  f(t,model="rw2",constr = TRUE) +
   f(t2,model="iid") +
   f(ID2,model="besag", graph=file.adj,
     group=t3,
@@ -104,8 +104,9 @@ formula.intIV<- totale_casi ~f(ID,model="bym",graph=file.adj) +
 #estimation
 fit_st4<-inla(formula.intIV, family="poisson", data=dat_csv, E=pop,control.compute = list(dic=T))
 summary(fit_st4)
-fit_st4<-inla(formula.intIV, family="poisson", data=dat_csv,control.compute = list(dic=T))
-summary(fit_st4)
+# BYM sul numero di casi
+#fit_st4<-inla(formula.intIV, family="poisson", data=dat_csv,control.compute = list(dic=T))
+#summary(fit_st4)
 
 #### components
 t_1<-fit_st4$summary.random$t$mean #overall trend
@@ -125,16 +126,21 @@ for ( i in 1:nprov){
 }
 
 nc.province$R0<-R0_vec
-spplot(nc.province, c( "R0"),main="R0, since 5/03")
+spplot(nc.province, c( "R0"),main="R0, period 5 - 19/03")
+levels(nc.province$DEN_PROV)<-c(levels(nc.province$DEN_PROV),"Venezia")
+nc.province$DEN_PROV[5]<-"Venezia"
 
-# trends+ specific
-matplot(trends)
-#specific for each province
-matplot(t(matrix(st,nrow=nprov)))
+
+
+plot(Date,exp(t_1),ylab="Temporal IRR",xlab="Date",ylim=range(exp(trends)),lwd=2,type="l")
+
+matlines(Date,exp(trends),ylab="Temporal IRR",xlab="Date",col=2:(nprov+1),lty=2:(nprov+1))
+legend("topleft",c("Veneto",paste(1:nprov,nc.province$DEN_PROV)),col=1:(nprov+1),lty=1:(nprov+1),cex=1)
+
 
 
 ##################predictions 3 days forward
-Forecast=3
+Forecast=14
 dat_csv2<-dat_csv 
 dat_csv2$t<-rep(1:days+days,nprov)
 dat_csv2$totale_casi<-NA
@@ -143,21 +149,18 @@ dat_csv_n<-rbind(dat_csv,dat_csv2)
 dat_csv_n$t3<-dat_csv_n$t2<-dat_csv_n$t
 #introducting hubei starting on 22/01, quarantine started on 25/01
 # applying a smoothing , data has errors
-hubei_new_cases<-filter(diff(hubei), rep(1, 5))
+hubei_new_cases<-stats::filter(diff(hubei), rep(1, 5))
 
 plot(hubei/58.5,type="l",ylab="COVID19 cases for milion of inhabitant",ylim=c(0,1530),xlab="Days since over 100 cases")
-lines(c(rep(NA,2),cumsum(tapply(dat_csv_n$totale_casi,dat_csv_n$t,sum))/10),col=2)
+lines(cumsum(tapply(dat_csv_n$totale_casi,dat_csv_n$t,sum)/10)[-c(1:7)],col=2)
 abline(v=2,col=1,lty=2)
-abline(v=4,col=2,lty=2)
 abline(v=10,col=3,lty=3)
-legend("bottomright",c("Hubei","Lombardy"),lty=1,col=1:2)
+legend("bottomright",c("Hubei","Veneto"),lty=1,col=1:2)
 text(10,1500,"Hubei quarantine")
-text(12,1350,"Lodi home lock",col=2)
-text(20,1200,"Lombardy home lock",col=3)
-#province of lodi restrictive measure started on 24/02 lag 28 days, at the beginning of the time series
-#other provinces on 11/03 lagged started their restrictions
+text(15,1200,"IT measures",col=3)
+#we considere a lag of 9 days between Hubei and the Veneto Region
 hubei_lodi<-hubei_new_cases[1:(days+Forecast)]
-hubei_others<-c(rep(NA,8),hubei_new_cases[1:(days+Forecast-8)])
+hubei_others<-c(rep(NA,7),hubei_new_cases[1:(days+Forecast-7)])
 dat_csv_n<-dat_csv_n[order(dat_csv_n$codice_provincia,dat_csv_n$t),]
 dat_csv_n$hubei<-rep(hubei_others,nprov)
 dat_csv_n$hubei[dat_csv_n$denominazione_provincia=="Lodi"]<-hubei_lodi
@@ -187,9 +190,9 @@ st<-fit_st4n$summary.random$ID2$mean # spatio-temporal coefficients
 ## Trends for province
 Date_n<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+days+Forecast-1,1)
 trends<-t_1+t(matrix(st,nrow=nprov))
-plot(Date_n,t_1,ylab="RW2 Time coefficient",xlab="Date")
-plot(Date_n,trends,ylab="RW2 Time coefficient",xlab="Date")
-matplot(trends,ylab="RW2 Time coefficient for Province",xlab="Date")
+plot(Date_n,t_1,ylab="RW2 Time coefficient",xlab="Date",ylim=range(trends),lwd=2,type="l")
+
+matlines(Date_n,trends,ylab="RW2 Time coefficient for Province",xlab="Date",col=2:(nprov+1))
 
 
 matplot(t(matrix(st,nrow=nprov)),ylab="RW2 Time coefficient for Province",xlab="Date")
