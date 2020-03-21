@@ -26,7 +26,7 @@ dat_csv<-dat_csv[dat_csv$codice_provincia<112,]
 #select a Region, in this example "Lombardia" Code region 3, Veneto 5
 Region<-5
 dat_csv<-dat_csv[dat_csv$codice_regione %in% Region,]
-dat_csv$denominazione_provincia<-droplevels(dat_csv_n$denominazione_provincia)
+dat_csv$denominazione_provincia<-droplevels(dat_csv$denominazione_provincia)
 #### number of province
 nprov<-length(table(dat_csv$denominazione_provincia)[table(dat_csv$denominazione_provincia)>0])
 
@@ -81,7 +81,7 @@ spplot(nc.province, c( "IRR_mean"))
 ########Pure temporal model (RW2)
 #RW2 temporal model
 Date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+days-1,1)
-formula_t = totale_casi ~ 1+f(t,model="rw2", constr = FALSE)+f(t2,model="iid")
+formula_t = totale_casi ~ 1+f(t,model="rw2")+f(t2,model="iid")
 fit_2<-inla(formula_t, family="poisson", data=dat_csv, E=pop,control.compute = list(dic=T))
 summary(fit_2)
 plot(Date,fit_2$summary.random$t$mean,ylab="Temp Coef",xlab="Date")
@@ -90,8 +90,8 @@ lm_fit<-lm(fit_2$summary.random$t$mean~I(1:days),subset=-1)
 coef(lm_fit)[2]
 plot(1:days,fit_2$summary.random$t$mean,ylab="Temp Coef",xlab="Date")
 abline(lm_fit)
-##Incidence rate ratios, the rate of increase od cases respect to time 1
-plot(Date,exp(fit_2$summary.random$t$mean),ylab="Indicence of cases",xlab="Date")
+##Incidence rate ratios, the rate of increase od cases respect to average.
+plot(Date,exp(fit_2$summary.random$t$mean),ylab="IRR",xlab="Date")
 
 ####interaction model type 4 (complete time trend interaction to estimate specific curves for each province)
 ####specification
@@ -140,7 +140,7 @@ legend("topleft",c("Veneto",paste(1:nprov,nc.province$DEN_PROV)),col=1:(nprov+1)
 
 
 ##################predictions 3 days forward
-Forecast=14
+Forecast=3
 dat_csv2<-dat_csv 
 dat_csv2$t<-rep(1:days+days,nprov)
 dat_csv2$totale_casi<-NA
