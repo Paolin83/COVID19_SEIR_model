@@ -1,10 +1,12 @@
 # COVID19 14-days forecast
 Predictions on COVID 19 epidemic using SEIR models
-(analysis updated on 21 March 2020, 01.00)  
+(analysis updated on 23 March 2020, 11.00)  
 ###
 New analysis  
-*Fraction of exposed and rate of infection estimated on the basis of a Negative Binomial distribution  
-*duration of COVID19 infectous period extended to 21 days (previous 14 days)  
+
+*Fraction of exposed and rate of infection estimated on the basis of a Poisson distribution  
+*duration of COVID19 infectous period extended to 18 days (previous 14 days)   
+*A seasonal component is included in the model (the weekend behaviours... count!) 
 ###
 
 - in Italy  
