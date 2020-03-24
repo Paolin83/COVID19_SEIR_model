@@ -81,8 +81,8 @@ dat_csv<-read.csv("https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dat
 dat_csv<-merge(dat_csv,pop_provincia,by=c("codice_provincia"),all.y=TRUE)
 dat_csv<-dat_csv[dat_csv$codice_provincia<112,]
 #select a Region, in this example "Lombardia" Code region 3
-Region<-3
-dat_csv<-dat_csv[dat_csv$codice_regione==Region,]
+Region<-c(3)
+dat_csv<-dat_csv[dat_csv$codice_regione %in%Region,]
 dat_csv$denominazione_provincia<-droplevels(dat_csv$denominazione_provincia)
 #### number of province
 nprov<-length(table(dat_csv$denominazione_provincia)[table(dat_csv$denominazione_provincia)>0])
@@ -102,7 +102,7 @@ dat_csv$totale_casi[dat_csv$totale_casi<0]<-0
 #### IMPORTANT, SET THE Work Directory of the shapefile 
 setwd("/Users/Paolo/My_Website/public/COVID19_SEIR_model")
 nc.province <- readShapePoly("BYM_model/ProvCM01012019_g/ProvCM01012019_g_WGS84.shp")
-nc.province<-nc.province[nc.province$COD_REG==Region,]
+nc.province<-nc.province[nc.province$COD_REG %in% Region,]
 nc.province<-nc.province[order(nc.province$COD_PROV),]
 nc.province$ID<-as.factor(nc.province$COD_PROV)
 levels(nc.province$ID)<-1:length(levels(nc.province$ID))
@@ -158,6 +158,8 @@ days<-max(dat_csv$t)
 dat_csv$t3<-dat_csv$t2<-dat_csv$t
 #### province
 dat_csv$ID2<-dat_csv$ID
+#### province
+dat_csv$IDt<-1:dim(dat_csv)[1]
 ########################## formula BYM
 formula.bym= totale_casi ~ 1+f(ID, model = "bym", graph = file.adj, param = c(prior.iid, prior.besag), initial = c(initial.iid, initial.besag))
 fit_1<-inla(formula.bym, family="poisson", data=dat_csv, E=pop,control.compute = list(dic=T))
@@ -165,8 +167,12 @@ summary(fit_1)
 ##incidence rate ratio for each province
 IRR_mean <- exp(fit_1$summary.random$ID$mean[1:nprov])
 nc.province$IRR_mean<-IRR_mean
-spplot(nc.province, c( "IRR_mean"),main="Incidence Rate Ratios")
-nomi_prov
+nc.province$DEN_PROV<-droplevels(nc.province$DEN_PROV)
+
+spplot(nc.province, c( "IRR_mean"),main="Incidence Rate Ratios", sp.layout=
+         list("sp.text", coordinates(nc.province), nc.province$DEN_PROV, cex=0.7, col="gray"))
+       
+
 ```
 The image reported the IRR=exp($\mu_i$), the increase of the Incidence of Covid-19 in each NUTS-3 Region respect to the overall mean.  
   
@@ -189,6 +195,8 @@ points(Date,tapply(dat_csv$totale_casi,dat_csv$t,sum))
 formula_t = totale_casi ~ 1+f(t,model="rw2", constr = FALSE)+f(t2,model="iid")
 fit_2<-inla(formula_t, family="poisson", data=dat_csv,control.compute = list(dic=T))
 summary(fit_2)
+
+
 ##Incidence rate ratios, increase od cases respect to time 1
 plot(Date,exp(fit_2$summary.random$t$mean),ylab="temporal IRR",xlab="Date")
 
@@ -222,44 +230,74 @@ $$
 where $\alpha$ is the intercept and:  
 *space: $\mu_i$ and $\nu_i$ are two area specific effects with normal distribution modelled using an intrinsic conditional autoregressive structure (iCAR);  
 
-*time: $\gamma_t \sim RW2$  are the coefficients related to the random walk process, while $\phi_t \sim N(0, \tau_t^{-1} )$ are the temporal specific random errors;
+*time: $\gamma_t$ are the coefficients related to the time process, while $\phi_t \sim N(0, \tau_t^{-1} )$ are the temporal specific random errors. Time process can be autoregressive or a random walk process (order 1 or 2);
 
-*space-time: $\delta_{it}$ are the coefficients related space-time interactions that in the its type 4 formulation (please see Spatial and Spatio-temporal Bayesian Models with R - INLA, Blangiardo and Cameletti) is made by the Kronecker product of time and space indexes.  
+*space-time: $\delta_{it}$ are the coefficients related space-time interactions. 
+
+There are many type of spatio-temporal interactions (please see Spatial and Spatio-temporal Bayesian Models with R - INLA, Blangiardo and Cameletti).  
+
+We explored four spatio-temporal interactions:
+-Type I:  coefficients $\delta_{it}$ do not have a spatial or/and temporal structure ($\delta_{it}\sim N(0, 1/\tau_{\delta})$).
+-TypeII: coefficients $\delta_{it}$ have a structured temporal main effect and the unstructured spatial effect.  
+-TypeIII: coefficients $\delta_{it}$ have a spatial structure (as Besag), but are temporally unstructured.
+-TypeVI: coefficients $\delta_{it}$ have both a spatial  and temporal structure. It is the most complex type of space-time interaction.
 
 ```{r}
 ####specification
-formula.intIV<- totale_casi ~f(ID,model="bym",graph=file.adj) +
-  f(t,model="rw2",constr = FALSE) +
-  f(t2,model="iid") +
-  f(ID2,model="besag", graph=file.adj,
-    group=t3,
-    control.group=list(model="rw2"))
+formula.intI<-  totale_casi ~ 1+ f(ID,model="bym",graph=file.adj) +
+f(t,model="rw2") +f(t2,model="iid") +
+f(IDt,model="iid")
+
+formula.intII<-  totale_casi ~ 1+f(ID,model="bym",graph=file.adj) +
+f(t,model="rw2") + f(t2,model="iid") +
+f(ID2,model="iid", group=t3,control.group=list(model="rw2"))
+
+formula.intIII<-   totale_casi ~ 1+f(ID,model="bym",graph=file.adj) +
+f(t,model="rw2") + f(t2,model="iid") +
+f(t3,model="iid", group=ID2, control.group=list(model="besag", graph=file.adj))
+
+formula.intIV<- totale_casi ~ 1+f(ID,model="bym",graph=file.adj) +
+f(t,model="rw2") + f(t2,model="iid") +
+f(ID2,model="besag", graph=file.adj, group=t3,control.group=list(model="rw2"))
+
+
+
 #estimation
+fit_st1<-inla(formula.intI, family="poisson", data=dat_csv, E=pop,control.compute = list(dic=T))
+fit_st2<-inla(formula.intII, family="poisson", data=dat_csv, E=pop,control.compute = list(dic=T))
+fit_st3<-inla(formula.intIII, family="poisson", data=dat_csv, E=pop,control.compute = list(dic=T))
 fit_st4<-inla(formula.intIV, family="poisson", data=dat_csv, E=pop,control.compute = list(dic=T))
-summary(fit_st4)
+
+# best DIC
+fit_st1$dic$dic
+fit_st2$dic$dic
+fit_st3$dic$dic
+fit_st4$dic$dic
+### the first model is the best, but we choice the third... because we want to force the spatial structure in the delta_ij.
 ```
   
   The time and space component mean estimates can be extracted here  
 
 ```{r}
 #overall trend
-t_1<-fit_st4$summary.random$t$mean 
+t_1<-fit_st3$summary.random$t$mean 
 #iid trend
-t_2<-fit_st4$summary.random$t2$mean 
+t_2<-fit_st3$summary.random$t2$mean 
  # spatial iCAR component
-s_1<-fit_st4$summary.random$ID$mean[1:nprov]
+s_1<-fit_st3$summary.random$ID$mean[1:nprov]
 # spatial idd
-s_2<-fit_st4$summary.random$ID$mean[(nprov+1):(nprov*2)] 
+s_2<-fit_st3$summary.random$ID$mean[(nprov+1):(nprov*2)] 
 #spatio-temporal model with car and ar1 specification
-st<-fit_st4$summary.random$ID2$mean 
+st<-fit_st3$summary.random$t3$mean 
+
 ```
    
-   When can represent the IRR(=exp($\mu_i+\frac{1}{T} \sum_{i=t}^{T} \delta_{it}$)) for each NUTS-3 regions.  
+When can represent the IRR(=exp($\mu_i+\frac{1}{T} \sum_{i=t}^{T} \delta_{it}$)) for each NUTS-3 regions.  
   
 ```{r}
-nc.province$IRR_st<-exp(s_1+apply(t(matrix(st,nrow=nprov)),2,mean))
+nc.province$IRR_st<-exp(s_1+apply(t(matrix(st,nrow=days)),1,mean))
 l1 = list("sp.text", coordinates(nc.province), nc.province$DEN_PROV,col="grey", cex=0.7,font=2)
-spplot(nc.province, c( "IRR_st"),main="IRR", sp.layout=list(l1))
+spplot(nc.province, c( "IRR_st"),main="Incidence ", sp.layout=list(l1))
 ```
 
 
@@ -271,7 +309,7 @@ Trend for each province.
 plot(Date,exp(t_1),ylab="IRR",main="Overall time trend")
 
 ## time trend for each province
-db_plot<-data.frame(t_1+t(matrix(st,nrow=nprov)))
+db_plot<-data.frame(t_1+matrix(st,nrow=days))
 names(db_plot)<-nc.province$DEN_PROV
 names(db_plot)[4]<-"Milano"
 province_trend<-xts(db_plot, order.by = Date, frequency = 7)
@@ -279,14 +317,55 @@ p <- dygraph(province_trend,main=paste("Lombardy Region",sep =""),xlab="Day",hei
 p
 
 #space time variation for each province from overall trend
-db_plot<-data.frame(t(matrix(st,nrow=nprov)))
+db_plot<-data.frame(matrix(st,nrow=days))
 names(db_plot)<-nc.province$DEN_PROV
 names(db_plot)[4]<-"Milano"
 province_trend<-xts(db_plot, order.by = Date, frequency = 7)
 p <- dygraph(province_trend,main=paste("Lombardy Region",sep =""),xlab="Day",height=400,width=800,ylab= "Delta coefficient") 
 p
 ```
-  
+
+```{r}
+q4<-round(quantile(1:days,0:4/4),0)
+
+#Incidence divided by four 
+
+Incidence_1q<-tapply(fit_st3$summary.fitted.values$mean[dat_csv$t %in%q4[1]:(q4[2]-1)], dat_csv$ID[dat_csv$t %in%q4[1]:(q4[2]-1)],sum)
+Incidence_2q<-tapply(fit_st3$summary.fitted.values$mean[dat_csv$t %in%q4[2]:(q4[3]-1)], dat_csv$ID[dat_csv$t %in%q4[2]:(q4[3]-1)],sum)
+Incidence_3q<-tapply(fit_st3$summary.fitted.values$mean[dat_csv$t %in%q4[3]:(q4[4]-1)], dat_csv$ID[dat_csv$t %in%q4[3]:(q4[4]-1)],sum)
+Incidence_4q<-tapply(fit_st3$summary.fitted.values$mean[dat_csv$t %in%q4[4]:(q4[5])], dat_csv$ID[dat_csv$t %in%q4[4]:(q4[5])],sum)
+nc.province$Incidence1<-Incidence_1q
+nc.province$Incidence2<-Incidence_2q
+nc.province$Incidence3<-Incidence_3q
+nc.province$Incidence4<-Incidence_4q
+cols = bpy.colors(100)
+col_lim<-range(c(Incidence_1q,Incidence_2q,Incidence_3q,Incidence_4q))
+c1i<-c(round((range(Incidence_1q)[1]/col_lim[2])*100))+1
+c1f<-c(round((range(Incidence_1q)[2]/col_lim[2])*100))
+c2i<-c(round((range(Incidence_2q)[1]/col_lim[2])*100))+1
+c2f<-c(round((range(Incidence_2q)[2]/col_lim[2])*100))
+c3i<-c(round((range(Incidence_3q)[1]/col_lim[2])*100))+1
+c3f<-c(round((range(Incidence_3q)[2]/col_lim[2])*100))
+c4i<-c(round((range(Incidence_4q)[1]/col_lim[2])*100))+1
+c4f<-c(round((range(Incidence_4q)[2]/col_lim[2])*100))
+
+plot<-list()
+i<-1
+p1<-spplot(nc.province, c(paste("Incidence",i,sep="")),main=paste("Incidence ",q4[i],"-",(q4[i+1]-1)," days", sep=""),col.regions =cols[c1i:c1f]) 
+i<-2
+p2<-spplot(nc.province, c(paste("Incidence",i,sep="")),main=paste("Incidence ",q4[i],"-",(q4[i+1]-1)," days", sep=""),col.regions =cols[c2i:c2f])
+i<-3
+p3<-spplot(nc.province, c(paste("Incidence",i,sep="")),main=paste("Incidence ",q4[i],"-",(q4[i+1]-1)," days", sep=""),col.regions =cols[c3i:c3f])
+i<-4
+p4<-spplot(nc.province, c(paste("Incidence",i,sep="")),main=paste("Incidence ",q4[i],"-",(q4[i+1])," days", sep=""),col.regions =cols[c4i:c4f])
+
+
+gc()
+library(gridExtra)
+grid.arrange(
+p1,p2,p3,p4,nrow = 2)
+```
+
 ##################predictions 3 days forward of new CODID 19 cases  
   
 ```{r}
@@ -326,38 +405,35 @@ We modelled the number of cases.
 In the rw2 I set constr = FALSE is set to FALSE and that, for this reason, the intercept is not included in the linear predictor.   
 
 ```{r}
-## include overdispersion parameter
-formula.intIVn<- totale_casi ~ log(hubei+1)+log(pop)+
-  f(t,model="rw2", constr = FALSE) +
-  f(t2,model="iid") +f(over,model="iid") +
-f(ID,model="bym",graph=file.adj) +
-  f(ID2,model="besag", graph=file.adj,
-    group=t3,
-    control.group=list(model="rw2"))+ f(over,model="iid") 
+## include pop e hubei
+formula.int_n<-  totale_casi ~ 1+log(hubei+1)+log(pop)+ f(ID,model="bym",graph=file.adj) +
+f(t,model="rw2") + f(t2,model="iid") +
+f(t3,model="iid", group=ID2, control.group=list(model="besag", graph=file.adj))
 
-fit_st4n<-inla(formula.intIVn, family="poisson", data=dat_csv_n,control.compute = list(dic=T),control.predictor = list(link = 1))
-summary(fit_st4n)
+
+fit_n<-inla(formula.int_n, family="poisson", data=dat_csv_n,control.compute = list(dic=T),control.predictor = list(link = 1))
+summary(fit_n)
 ```
 
 ```{r}
 #### components
 #overall trend
-t_1<-fit_st4n$summary.random$t$mean 
+t_1<-fit_n$summary.random$t$mean 
 #iid trend
-t_2<-fit_st4n$summary.random$t2$mean 
+t_2<-fit_n$summary.random$t2$mean 
  # spatial CAR componen
-s_1<-fit_st4n$summary.random$ID$mean[1:nprov]
+s_1<-fit_n$summary.random$ID$mean[1:nprov]
 # spatial idd
-s_2<-fit_st4n$summary.random$ID$mean[(nprov+1):(nprov*2)] 
+s_2<-fit_n$summary.random$ID$mean[(nprov+1):(nprov*2)] 
 # spatio-temporal coefficients 
-st<-fit_st4n$summary.random$ID2$mean 
+st<-fit_n$summary.random$t3$mean
 ## Trends for province
 Date_n<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+days+Forecast-1,1)
 trends<-t_1+t(matrix(st,nrow=nprov))
 plot(Date_n,t_1,ylab="RW2 Time coefficient",xlab="Date")
 matplot(t(matrix(st,nrow=nprov)),ylab="RW2 Time coefficient for Province",xlab="Date")
 #extract number of cases for lodi
-est_lodi<-fit_st4n$summary.fitted.values[dat_csv_n$denominazione_provincia=="Lodi",]
+est_lodi<-fit_n$summary.fitted.values[dat_csv_n$denominazione_provincia=="Lodi",]
 
 
 days.before<-Date_n[1:days]
