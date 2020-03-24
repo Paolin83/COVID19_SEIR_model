@@ -1,3 +1,4 @@
+
 ---
 title: "COVID19 - Forecast and predictions using a time dependent SEIR model - Italy"
 author: "Paolo Girardi"
@@ -234,7 +235,7 @@ We predict beta (and R0) for the next 14 days by means of a linear regressione m
 time<-3:(days-2)
 weekend<-rep(c(1,2,3,4,5,6,7),ceiling(days/7))[3:(days-2)]
 data=data.frame(time,weekend)
-beta.model<-glm(beta_vec~time+bs(weekend),weights = 1/sd_vec,family=gaussian,data=data)
+beta.model<-glm(beta_vec~time+I(cos(time*2*pi/7))+I(sin(time*2*pi/7)),weights = 1/sd_vec,family=gaussian,data=data)
 summary(beta.model)
 anova(beta.model,test="Chisq")
 #there is an effect of the week, as supposed 
@@ -274,17 +275,17 @@ The parameter $\nu$ is the rate of vaccination.
 
 We want to make a short term forecast (14 days).
 
-We made a forecast by means of a SEIR model fixing a series of initial status:
+We made a forecast by means of a SEIR model fixing a series of initial status:   
 *S:N, the size of Italian population  
-*E: The number of exposed people (unknown)  
-*I_start: initial number of COVID-19 cases     
-*R_start: initial number of recovered  
+*E: The number of exposed people, but supposed to be at least 3 times the infected (3 x I_start)  
+*I_start: initial number of COVID-19 cases       
+*R_start: initial number of recovered    
 
-and parameters:  
-- beta: gamma + slope
-- gamma= 1/duration of diseases (duration=21 days)
-- sigma: the coronavirus transmission rate 
-- mu0: the overall mortality rate     
+and parameters:    
+- beta: gamma + slope  
+- gamma= 1/duration of diseases (duration=21 days)   
+- sigma: the coronavirus transmission rate   
+- mu0: the overall mortality rate      
 
 
 ```{r ini parameters plot, echo=TRUE}
@@ -314,7 +315,8 @@ The Poisson distribution has a fixed variance that is equal to the mean; in the 
 However, the parameter $\theta_t$ can be supposed to be a realization of a SEIR model with initial parameters $\theta=(\mu,\beta,\sigma, \gamma)$  and initial status $S=(S_{start},E_{start},I_{start},R_{start})$.  
 
 
-The parameter $\sigma$ and the fraction of exposed people ($E_{start}$) are our parameters of interest; we estimate $\sigma$ and $E_{start}$ minimizing the log likelihood of the described Poisson distribution (or Negative Binomial one).  
+The parameter $\sigma$ is our parameter of interest; we estimate $\sigma$ fixing $E_{start}= 3*I_{start}$ minimizing the log likelihood of the described Poisson distribution (or Negative Binomial one).  
+
 
 ```{r estimation of gamma and exposed, echo=TRUE}
 # number of the last considered days for calibration
@@ -340,17 +342,17 @@ logit <- function (p) log(p/(1-p))    # the logit transform
 expit <- function (x) 1/(1+exp(-x))   # inverse logit
 
 f1<-function(par){
-f_exp<-expit(par[1])
-sigma<-expit(par[2])
+sigma<-expit(par)
+f_exp<-3*I_1/N
 parameters <- c(mu = mu0, beta =(mean(beta_vec[1:(days-last-2)])+1/duration), sigma = sigma, gamma =1/duration)
 initials <- c(S = (1-(f_exp+I_1/N-R_start/N)), E = f_exp, I = I_1/N, R = R_1/N)
 -LogLikfun(initials,parameters,dat_csv$totale_attualmente_positivi[c((days-last):days)])
 }
-est<-optim(fn=f1,par=c(logit(0.0005),logit(0.1)))
+est<-optim(fn=f1,par=logit(0.1))
 #estimated par
 expit(est$par)
-f_exp<-expit(est$par[1])
-sigma<-expit(est$par[2])
+sigma<-expit(est$par)
+f_exp<-3*I_1/N
 parameters <- c(mu = mu0, beta =(mean(beta_vec[1:(days-last-2)])+1/duration), sigma = sigma, gamma = 1/duration)
 initials <- c(S = (1-(f_exp+I_1/N-R_1/N)), E = f_exp, I = I_1/N, R = R_1/N)
 pro<-SEIR(pars = parameters, init = initials, time = 0:last)
@@ -369,10 +371,10 @@ sigma
 ```
 
 ```{r status, echo=TRUE}
-#mthe unknowrn fraction of exposed people is
+#the unknowrn fraction of exposed people is
 pro$results$E[last+1];
 #that is 
-pro$results$E[last+1]/(I_1/N)
+pro$results$E[last+1]/pro$results$I[last+1]
 #times the infected
 ```
 For the beta parameter, we perfom a simulation on its trend by means of a Bayesian Structural Time Series using the library bsts of R.    

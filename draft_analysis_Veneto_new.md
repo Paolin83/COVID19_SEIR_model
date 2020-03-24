@@ -2,7 +2,7 @@ COVID19 - Forecast and predictions using a time dependent SEIR model for
 the Veneto Region
 ================
 Paolo Girardi
-23 Marzo, 2020
+24 Marzo, 2020
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
 work is licensed under a
@@ -128,7 +128,7 @@ dat_csv$t<-1:days
 days
 ```
 
-    ## [1] 28
+    ## [1] 29
 
 Several outcomes can be potentially monitored, that is
 
@@ -322,21 +322,21 @@ summary(beta.model)
     ##     weights = 1/sd_vec)
     ## 
     ## Deviance Residuals: 
-    ##     Min       1Q   Median       3Q      Max  
-    ## -0.8597  -0.2027   0.0294   0.2263   1.2559  
+    ##      Min        1Q    Median        3Q       Max  
+    ## -0.85559  -0.18880   0.02832   0.21128   1.26389  
     ## 
     ## Coefficients:
     ##              Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)  0.232581   0.029023   8.014 5.74e-08 ***
-    ## time        -0.004843   0.001635  -2.962  0.00719 ** 
+    ## (Intercept)  0.231034   0.027664   8.352 2.03e-08 ***
+    ## time        -0.004719   0.001512  -3.120  0.00481 ** 
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## (Dispersion parameter for gaussian family taken to be 0.2441145)
+    ## (Dispersion parameter for gaussian family taken to be 0.2340752)
     ## 
-    ##     Null deviance: 7.5129  on 23  degrees of freedom
-    ## Residual deviance: 5.3705  on 22  degrees of freedom
-    ## AIC: -66.166
+    ##     Null deviance: 7.6622  on 24  degrees of freedom
+    ## Residual deviance: 5.3837  on 23  degrees of freedom
+    ## AIC: -70.435
     ## 
     ## Number of Fisher Scoring iterations: 2
 
@@ -354,8 +354,8 @@ anova(beta.model,test="Chisq")
     ## 
     ## 
     ##      Df Deviance Resid. Df Resid. Dev Pr(>Chi)   
-    ## NULL                    23     7.5129            
-    ## time  1   2.1424        22     5.3705 0.003052 **
+    ## NULL                    24     7.6622            
+    ## time  1   2.2784        23     5.3837 0.001809 **
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -384,7 +384,7 @@ p
 ![](draft_analysis_Veneto_new_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
 R0 passes from a value of NA in the initial phase to an estimated value
-of 1.52 at the ending of the 14-days forecast.  
+of 1.51 at the ending of the 14-days forecast.  
 We use the library(EpiDynamics) and the function SEIR() to implement a
 SEIR model:
 
@@ -405,22 +405,25 @@ parameter \(\nu\) is the rate of vaccination.
 We want to make a short term forecast (14 days).
 
 We made a forecast by means of a SEIR model fixing a series of initial
-status: *S:N, the size of the Veneto Region population  
-*E: The number of exposed people (unknown)  
+status:  
+*S:N, the size of the Veneto Region population  
+*E: The number of exposed people, but supposed to be at least 3 times
+the infected (3 x I\_start)  
 *I\_start: initial number of COVID-19 cases  
 *R\_start: initial number of recovered
 
 and parameters:  
-\- beta: gamma + slope - gamma= 1/duration of diseases (duration=21
-days) - sigma: the coronavirus transmission rate - mu0: the overall
-mortality rate
+\-beta: gamma + slope  
+\-gamma= 1/duration of diseases (duration=21 days)  
+\-sigma: the coronavirus transmission rate  
+\-mu0: the overall mortality rate
 
 ``` r
 # initial number of infectus
 I_start<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I_start
 ```
 
-    ## [1] 4644
+    ## [1] 4986
 
 ``` r
 # initial number of recovered, based on the proportion of discharged from the health services
@@ -428,7 +431,7 @@ prop<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]/dat_csv$totale_ospedalizzati[dim(
 R_start<-prop*dat_csv$totale_casi[dim(dat_csv)[1]]; R_start
 ```
 
-    ## [1] 1156.943
+    ## [1] 1210.582
 
 ``` r
 # Veneto population
@@ -458,10 +461,10 @@ of a SEIR model with initial parameters
 \(\theta=(\mu,\beta,\sigma, \gamma)\) and initial status
 \(S=(S_{start},E_{start},I_{start},R_{start})\).
 
-The parameter \(\sigma\) and the fraction of exposed people
-(\(E_{start}\)) are our parameters of interest; we estimate \(\sigma\)
-and \(E_{start}\) minimizing the log likelihood of the described Poisson
-distribution (or Negative Binomial one).
+The parameter \(\sigma\) is our parameter of interest; we estimate
+\(\sigma\) fixing \(E_{start}= 3*I_{start}\) minimizing the log
+likelihood of the described Poisson distribution (or Negative Binomial
+one).
 
 ``` r
 # number of the last considered days for calibration
@@ -487,24 +490,50 @@ logit <- function (p) log(p/(1-p))    # the logit transform
 expit <- function (x) 1/(1+exp(-x))   # inverse logit
 
 f1<-function(par){
-f_exp<-expit(par[1])
-#max 0.33 according to https://www.nejm.org/doi/10.1056/NEJMoa2001316 is 1/5.2
-sigma<-expit(par[2])/3
-parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[days-last-2])+1/duration), sigma = sigma, gamma =1/duration)
+#max 0.20 according to https://www.nejm.org/doi/10.1056/NEJMoa2001316 is 1/5.2
+sigma<-expit(par)
+f_exp<-3*I_1/N
+parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[(days-last-2)])+1/duration), sigma = sigma, gamma =1/duration)
 initials <- c(S = (1-(f_exp+I_1/N+R_start/N)), E = f_exp, I = I_1/N, R = R_1/N)
 -LogLikfun(initials,parameters,dat_csv$totale_attualmente_positivi[c((days-last):days)])
 }
-est<-optim(fn=f1,par=c(logit(0.02),logit(0.2)))
-#estimated par
+est<-optim(fn=f1,par=logit(0.1))
+```
+
+    ## Warning in optim(fn = f1, par = logit(0.1)): one-dimensional optimization by Nelder-Mead is unreliable:
+    ## use "Brent" or optimize() directly
+
+``` r
+est
+```
+
+    ## $par
+    ## [1] -2.19532
+    ## 
+    ## $value
+    ## [1] 93.6064
+    ## 
+    ## $counts
+    ## function gradient 
+    ##       30       NA 
+    ## 
+    ## $convergence
+    ## [1] 0
+    ## 
+    ## $message
+    ## NULL
+
+``` r
 expit(est$par)
 ```
 
-    ## [1] 0.0002371571 0.7334046005
+    ## [1] 0.1001715
 
 ``` r
-f_exp<-expit(est$par[1])
-sigma<-expit(est$par[2])/3
-parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[days-last-2])+1/duration), sigma = sigma, gamma = 1/duration)
+f_exp<-3*I_1/N
+sigma<-expit(est$par)
+
+parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[(days-last-2)])+1/duration), sigma = sigma, gamma = 1/duration)
 initials <- c(S = (1-(f_exp+I_1/N+R_1/N)), E = f_exp, I = I_1/N, R = R_1/N)
 pro<-SEIR(pars = parameters, init = initials, time = 0:last)
 #predicted vs observed
@@ -512,17 +541,17 @@ cbind(pro$results$I*N,dat_csv$totale_attualmente_positivi[c((days-last):days)])
 ```
 
     ##           [,1] [,2]
-    ##  [1,] 1297.000 1297
-    ##  [2,] 1512.467 1453
-    ##  [3,] 1738.265 1775
-    ##  [4,] 1981.832 1989
-    ##  [5,] 2249.396 2274
-    ##  [6,] 2546.482 2488
-    ##  [7,] 2878.466 2953
-    ##  [8,] 3250.867 3169
-    ##  [9,] 3669.538 3677
-    ## [10,] 4140.840 4214
-    ## [11,] 4670.854 4644
+    ##  [1,] 1453.000 1453
+    ##  [2,] 1796.788 1775
+    ##  [3,] 2120.958 1989
+    ##  [4,] 2433.872 2274
+    ##  [5,] 2741.712 2488
+    ##  [6,] 3051.608 2953
+    ##  [7,] 3368.074 3169
+    ##  [8,] 3695.418 3677
+    ##  [9,] 4037.880 4214
+    ## [10,] 4398.704 4644
+    ## [11,] 4781.300 4986
 
 The values of initial parameters are
 
@@ -538,7 +567,7 @@ mu0;
 sigma
 ```
 
-    ## [1] 0.2444682
+    ## [1] 0.1001715
 
 ``` r
 #gamma
@@ -552,14 +581,14 @@ sigma
 pro$results$E[last+1]
 ```
 
-    ## [1] 0.0006855331
+    ## [1] 0.001343279
 
 ``` r
 #that is 
-pro$results$E[last+1]/(I_1/N)
+pro$results$E[last+1]/pro$results$I[last+1]
 ```
 
-    ## [1] 2.593009
+    ## [1] 1.378274
 
 ``` r
 #times the infected
@@ -579,23 +608,23 @@ as burn-in.
 ``` r
 # Bayesian Structural Time Series
 #we drop the first 6 beta_vec
-ss <- AddLocalLinearTrend(list(), beta_vec[6:(days-4)])
+ss <- AddStudentLocalLinearTrend(list(), beta_vec[6:(days-4)])
 ss <- AddSeasonal(ss, beta_vec[6:(days-4)], nseasons = 7)
 model1 <- bsts(beta_vec[6:(days-4)],
                state.specification = ss,
                niter = 1000,seed=123)
 ```
 
-    ## =-=-=-=-= Iteration 0 Mon Mar 23 10:49:20 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Mon Mar 23 10:49:20 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Mon Mar 23 10:49:20 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Mon Mar 23 10:49:20 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Mon Mar 23 10:49:20 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Mon Mar 23 10:49:20 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Mon Mar 23 10:49:20 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Mon Mar 23 10:49:20 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Mon Mar 23 10:49:20 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Mon Mar 23 10:49:20 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Tue Mar 24 12:39:49 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Tue Mar 24 12:39:49 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Tue Mar 24 12:39:49 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Tue Mar 24 12:39:49 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Tue Mar 24 12:39:49 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Tue Mar 24 12:39:49 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Tue Mar 24 12:39:49 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Tue Mar 24 12:39:49 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Tue Mar 24 12:39:49 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Tue Mar 24 12:39:49 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
@@ -664,10 +693,10 @@ p
 
 ![](draft_analysis_Veneto_new_files/figure-gfm/scenario%20plot%20-1.png)<!-- -->
 
-At the end of the 2 weeks (2020-04-05): \*the number of infected is
-(9554.6104118).
+At the end of the 2 weeks (2020-04-06): \*the number of infected is
+(1.118071610^{4}).
 
-\*the total number of COVID19 cases is expected to be (1.656419410^{4}).
+\*the total number of COVID19 cases is expected to be (1.852061510^{4}).
 
 The estimated (median) numbers of the current scenario by date are:
 
@@ -681,22 +710,22 @@ rownames(forecast)<-days.ahead
 kable(forecast)
 ```
 
-|            | Susceptible |  Exposed | Infected |  Removed |
-| ---------- | ----------: | -------: | -------: | -------: |
-| 2020-03-23 |     4896049 | 3211.505 | 5173.598 | 1429.761 |
-| 2020-03-24 |     4895350 | 3138.257 | 5647.803 | 1730.377 |
-| 2020-03-25 |     4894541 | 3158.526 | 6089.180 | 2056.421 |
-| 2020-03-26 |     4893735 | 3219.350 | 6520.218 | 2406.772 |
-| 2020-03-27 |     4892827 | 3335.919 | 6929.943 | 2780.661 |
-| 2020-03-28 |     4892034 | 3239.147 | 7349.943 | 3178.458 |
-| 2020-03-29 |     4891380 | 3186.995 | 7710.285 | 3593.881 |
-| 2020-03-30 |     4890694 | 3196.845 | 8016.190 | 4032.156 |
-| 2020-03-31 |     4889896 | 3120.553 | 8354.191 | 4492.810 |
-| 2020-04-01 |     4888981 | 3127.348 | 8642.750 | 4953.438 |
-| 2020-04-02 |     4888305 | 3105.765 | 8945.414 | 5438.046 |
-| 2020-04-03 |     4887514 | 3160.497 | 9101.109 | 5948.245 |
-| 2020-04-04 |     4886983 | 3057.593 | 9419.930 | 6460.133 |
-| 2020-04-05 |     4886524 | 2443.740 | 9554.610 | 7009.584 |
+|            | Susceptible |   Exposed |  Infected |  Removed |
+| ---------- | ----------: | --------: | --------: | -------: |
+| 2020-03-24 |     4892248 |  6751.699 |  5366.473 | 1498.108 |
+| 2020-03-25 |     4891290 |  7019.986 |  5747.822 | 1806.796 |
+| 2020-03-26 |     4890220 |  7373.248 |  6137.860 | 2136.874 |
+| 2020-03-27 |     4889122 |  7701.894 |  6543.024 | 2488.946 |
+| 2020-03-28 |     4888045 |  7987.210 |  6956.206 | 2864.014 |
+| 2020-03-29 |     4886921 |  8285.232 |  7369.075 | 3262.035 |
+| 2020-03-30 |     4885788 |  8575.176 |  7791.005 | 3683.260 |
+| 2020-03-31 |     4884598 |  8947.631 |  8225.612 | 4127.923 |
+| 2020-04-01 |     4883204 |  9388.454 |  8679.431 | 4596.880 |
+| 2020-04-02 |     4881741 |  9899.155 |  9144.347 | 5093.341 |
+| 2020-04-03 |     4880242 | 10409.240 |  9626.433 | 5615.007 |
+| 2020-04-04 |     4878722 | 10834.174 | 10142.511 | 6161.741 |
+| 2020-04-05 |     4877165 | 11228.534 | 10676.529 | 6735.801 |
+| 2020-04-06 |     4875580 | 11502.382 | 11180.716 | 7339.898 |
 
 # Scenario 2 - Forecast based on the last beta coefficient
 
@@ -706,22 +735,22 @@ last value of the beta.
 ``` r
 ss<-NULL
 set.seed(123)
-ss <- AddLocalLinearTrend(list(), rnorm(100,beta_vec[days-4],sd_vec[days-4]))
-model1 <- bsts(beta_vec[6:(days-4)],
+ss <-   AddLocalLevel(list(), beta_vec[(days-9):(days-4)],sigma=SdPrior(sd_vec[(days-4)]))
+model1 <- bsts(beta_vec[(days-9):(days-4)],
                state.specification = ss,
                niter = 1000,seed=123)
 ```
 
-    ## =-=-=-=-= Iteration 0 Mon Mar 23 10:50:03 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Mon Mar 23 10:50:03 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Mon Mar 23 10:50:03 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Mon Mar 23 10:50:03 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Mon Mar 23 10:50:03 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Mon Mar 23 10:50:03 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Mon Mar 23 10:50:04 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Mon Mar 23 10:50:04 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Mon Mar 23 10:50:04 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Mon Mar 23 10:50:04 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Tue Mar 24 12:40:14 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Tue Mar 24 12:40:14 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Tue Mar 24 12:40:14 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Tue Mar 24 12:40:14 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Tue Mar 24 12:40:14 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Tue Mar 24 12:40:14 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Tue Mar 24 12:40:14 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Tue Mar 24 12:40:14 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Tue Mar 24 12:40:14 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Tue Mar 24 12:40:14 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
@@ -766,8 +795,8 @@ colnames(seir2_sim)[1]<-"sim"
 
 ### confidence limits
 I_seir_med<-tapply(seir2_sim$I,seir2_sim$time,median)
-I_seir_lwr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.25)
-I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.75)
+I_seir_lwr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.05)
+I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.95)
 
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
@@ -777,17 +806,17 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Veneto Region: Scenario 2 (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 2 (Credible Interval ",100*0.90,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
 
 ![](draft_analysis_Veneto_new_files/figure-gfm/scenario2%20sim%20and%20plot%20-3.png)<!-- -->
 
-At the end of the 2 weeks (2020-04-05): \*the number of infected is
-(1.326935610^{4}).
+At the end of the 2 weeks (2020-04-06): \*the number of infected is
+(1.166584110^{4}).
 
-\*the total number of COVID19 cases is expected to be (2.113110310^{4}).
+\*the total number of COVID19 cases is expected to be (1.909977610^{4}).
 
 The estimated (median) numbers of the second scenario by date are:
 
@@ -801,22 +830,22 @@ rownames(forecast)<-days.ahead
 kable(forecast)
 ```
 
-|            | Susceptible |  Exposed |  Infected |  Removed |
-| ---------- | ----------: | -------: | --------: | -------: |
-| 2020-03-23 |     4895881 | 3361.377 |  5191.798 | 1430.185 |
-| 2020-03-24 |     4894984 | 3432.416 |  5718.821 | 1733.257 |
-| 2020-03-25 |     4894004 | 3548.554 |  6239.210 | 2065.348 |
-| 2020-03-26 |     4892949 | 3709.372 |  6763.598 | 2426.640 |
-| 2020-03-27 |     4891911 | 3841.714 |  7307.047 | 2817.485 |
-| 2020-03-28 |     4890743 | 4063.051 |  7841.282 | 3238.007 |
-| 2020-03-29 |     4889482 | 4311.883 |  8402.522 | 3690.445 |
-| 2020-03-30 |     4888119 | 4538.643 |  8993.579 | 4171.455 |
-| 2020-03-31 |     4886703 | 4820.346 |  9630.364 | 4690.367 |
-| 2020-04-01 |     4885227 | 5101.100 | 10284.605 | 5237.512 |
-| 2020-04-02 |     4883745 | 5488.634 | 10982.356 | 5829.449 |
-| 2020-04-03 |     4882056 | 5811.580 | 11713.888 | 6451.237 |
-| 2020-04-04 |     4880200 | 6060.954 | 12424.053 | 7132.714 |
-| 2020-04-05 |     4878324 | 6400.891 | 13269.356 | 7861.747 |
+|            | Susceptible |   Exposed |  Infected |  Removed |
+| ---------- | ----------: | --------: | --------: | -------: |
+| 2020-03-24 |     4892191 |  6805.470 |  5369.094 | 1498.181 |
+| 2020-03-25 |     4891236 |  7067.250 |  5754.736 | 1807.126 |
+| 2020-03-26 |     4890211 |  7368.507 |  6146.806 | 2137.675 |
+| 2020-03-27 |     4889116 |  7707.379 |  6549.021 | 2490.233 |
+| 2020-03-28 |     4887956 |  8079.315 |  6963.986 | 2865.506 |
+| 2020-03-29 |     4886718 |  8486.597 |  7394.752 | 3264.250 |
+| 2020-03-30 |     4885401 |  8929.191 |  7843.343 | 3687.420 |
+| 2020-03-31 |     4884021 |  9397.129 |  8310.266 | 4136.055 |
+| 2020-04-01 |     4882554 |  9899.554 |  8802.734 | 4611.458 |
+| 2020-04-02 |     4880991 | 10445.935 |  9317.743 | 5114.215 |
+| 2020-04-03 |     4879321 | 11016.769 |  9857.535 | 5646.311 |
+| 2020-04-04 |     4877595 | 11630.710 | 10429.177 | 6210.321 |
+| 2020-04-05 |     4875753 | 12251.878 | 11030.287 | 6805.495 |
+| 2020-04-06 |     4873850 | 12925.127 | 11665.841 | 7433.936 |
 
 # Number of admitted in intensive care
 
@@ -855,7 +884,7 @@ step.ahead<-forecast+1
 #Scenario 1
 
 I_seir_med<-tapply(seir1_sim$I,seir1_sim$time,median)
-I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.25)
+I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.05)
 I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.75)
 
 mu.lower<-c(dat_csv$terapia_intensiva,I_seir_med*N*((pre$fit-1.645*pre$se.fit)[(days+1):(days+forecast)]))
@@ -878,20 +907,20 @@ kable(intensive_care)
 
 |            |   mu.med | mu.lower | mu.upper |
 | ---------- | -------: | -------: | -------: |
-| 2020-03-23 | 312.9183 | 296.3259 | 329.5106 |
-| 2020-03-24 | 337.9128 | 318.3915 | 357.4342 |
-| 2020-03-25 | 360.3857 | 337.7832 | 382.9883 |
-| 2020-03-26 | 381.7256 | 355.8353 | 407.6159 |
-| 2020-03-27 | 401.3249 | 372.0046 | 430.6452 |
-| 2020-03-28 | 421.0411 | 388.0328 | 454.0494 |
-| 2020-03-29 | 436.8999 | 400.2787 | 473.5210 |
-| 2020-03-30 | 449.3113 | 409.1810 | 489.4416 |
-| 2020-03-31 | 463.1786 | 419.2369 | 507.1204 |
-| 2020-04-01 | 473.9777 | 426.3543 | 521.6010 |
-| 2020-04-02 | 485.2495 | 433.7518 | 536.7472 |
-| 2020-04-03 | 488.3315 | 433.7288 | 542.9342 |
-| 2020-04-04 | 499.9435 | 441.1814 | 558.7056 |
-| 2020-04-05 | 501.5754 | 439.7362 | 563.4146 |
+| 2020-03-24 | 315.1473 | 299.2786 | 331.0160 |
+| 2020-03-25 | 333.3967 | 315.1486 | 351.6448 |
+| 2020-03-26 | 351.6448 | 330.7939 | 372.4957 |
+| 2020-03-27 | 370.2465 | 346.5504 | 393.9425 |
+| 2020-03-28 | 388.7819 | 362.0250 | 415.5389 |
+| 2020-03-29 | 406.7840 | 376.7882 | 436.7798 |
+| 2020-03-30 | 424.7738 | 391.3297 | 458.2179 |
+| 2020-03-31 | 442.9370 | 405.8212 | 480.0529 |
+| 2020-04-01 | 461.6052 | 420.5632 | 502.6472 |
+| 2020-04-02 | 480.3237 | 435.1368 | 525.5107 |
+| 2020-04-03 | 499.3959 | 449.8150 | 548.9768 |
+| 2020-04-04 | 519.6603 | 465.3435 | 573.9771 |
+| 2020-04-05 | 540.2503 | 480.9322 | 599.5684 |
+| 2020-04-06 | 558.7556 | 494.4431 | 623.0681 |
 
 ``` r
 #Scenario 2
@@ -920,17 +949,17 @@ kable(intensive_care)
 
 |            |   mu.med | mu.lower | mu.upper |
 | ---------- | -------: | -------: | -------: |
-| 2020-03-23 | 314.0191 | 297.3683 | 330.6698 |
-| 2020-03-24 | 342.1619 | 322.3951 | 361.9287 |
-| 2020-03-25 | 369.2652 | 346.1057 | 392.4246 |
-| 2020-03-26 | 395.9743 | 369.1176 | 422.8310 |
-| 2020-03-27 | 423.1636 | 392.2478 | 454.0794 |
-| 2020-03-28 | 449.1875 | 413.9726 | 484.4024 |
-| 2020-03-29 | 476.1252 | 436.2162 | 516.0342 |
-| 2020-03-30 | 504.0944 | 459.0711 | 549.1177 |
-| 2020-03-31 | 533.9331 | 483.2789 | 584.5873 |
-| 2020-04-01 | 564.0187 | 507.3484 | 620.6890 |
-| 2020-04-02 | 595.7447 | 532.5205 | 658.9688 |
-| 2020-04-03 | 628.5235 | 558.2452 | 698.8018 |
-| 2020-04-04 | 659.3812 | 581.8792 | 736.8832 |
-| 2020-04-05 | 696.5833 | 610.7016 | 782.4650 |
+| 2020-03-24 | 315.3013 | 299.4248 | 331.1777 |
+| 2020-03-25 | 333.7977 | 315.5277 | 352.0678 |
+| 2020-03-26 | 352.1573 | 331.2760 | 373.0387 |
+| 2020-03-27 | 370.5858 | 346.8680 | 394.3037 |
+| 2020-03-28 | 389.2167 | 362.4299 | 416.0036 |
+| 2020-03-29 | 408.2014 | 378.1011 | 438.3017 |
+| 2020-03-30 | 427.6273 | 393.9585 | 461.2961 |
+| 2020-03-31 | 447.4955 | 409.9976 | 484.9933 |
+| 2020-04-01 | 468.1629 | 426.5378 | 509.7880 |
+| 2020-04-02 | 489.4317 | 443.3879 | 535.4754 |
+| 2020-04-03 | 511.3849 | 460.6137 | 562.1560 |
+| 2020-04-04 | 534.3479 | 478.4959 | 590.1999 |
+| 2020-04-05 | 558.1511 | 496.8675 | 619.4346 |
+| 2020-04-06 | 582.9996 | 515.8966 | 650.1026 |

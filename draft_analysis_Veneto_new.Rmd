@@ -1,3 +1,4 @@
+
 ---
 title: "COVID19 - Forecast and predictions using a time dependent SEIR model for the Veneto Region"
 author: "Paolo Girardi"
@@ -274,17 +275,17 @@ The parameter $\nu$ is the rate of vaccination.
 
 We want to make a short term forecast (14 days).
 
-We made a forecast by means of a SEIR model fixing a series of initial status:
+We made a forecast by means of a SEIR model fixing a series of initial status:  
 *S:N, the size of the Veneto Region population  
-*E: The number of exposed people (unknown)  
+*E: The number of exposed people, but supposed to be at least 3 times the infected (3 x I_start)  
 *I_start: initial number of COVID-19 cases     
 *R_start: initial number of recovered  
 
-and parameters:  
-- beta: gamma + slope
-- gamma= 1/duration of diseases (duration=21 days)
-- sigma: the coronavirus transmission rate 
-- mu0: the overall mortality rate     
+and parameters:   
+-beta: gamma + slope   
+-gamma= 1/duration of diseases (duration=21 days)   
+-sigma: the coronavirus transmission rate   
+-mu0: the overall mortality rate       
 
 
 ```{r ini parameters plot, echo=TRUE}
@@ -313,8 +314,7 @@ The Poisson distribution has a fixed variance that is equal to the mean; in the 
 
 However, the parameter $\theta_t$ can be supposed to be a realization of a SEIR model with initial parameters $\theta=(\mu,\beta,\sigma, \gamma)$  and initial status $S=(S_{start},E_{start},I_{start},R_{start})$.  
 
-
-The parameter $\sigma$ and the fraction of exposed people ($E_{start}$) are our parameters of interest; we estimate $\sigma$ and $E_{start}$ minimizing the log likelihood of the described Poisson distribution (or Negative Binomial one).  
+The parameter $\sigma$ is our parameter of interest; we estimate $\sigma$ fixing $E_{start}= 3*I_{start}$ minimizing the log likelihood of the described Poisson distribution (or Negative Binomial one).  
 
 ```{r estimation of gamma and exposed, echo=TRUE}
 # number of the last considered days for calibration
@@ -340,20 +340,21 @@ logit <- function (p) log(p/(1-p))    # the logit transform
 expit <- function (x) 1/(1+exp(-x))   # inverse logit
 
 f1<-function(par){
-f_exp<-expit(par[1])
-#max 0.33 according to https://www.nejm.org/doi/10.1056/NEJMoa2001316 is 1/5.2
-sigma<-expit(par[2])/3
-parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[days-last-2])+1/duration), sigma = sigma, gamma =1/duration)
+#max 0.20 according to https://www.nejm.org/doi/10.1056/NEJMoa2001316 is 1/5.2
+sigma<-expit(par)
+f_exp<-3*I_1/N
+parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[(days-last-2)])+1/duration), sigma = sigma, gamma =1/duration)
 initials <- c(S = (1-(f_exp+I_1/N+R_start/N)), E = f_exp, I = I_1/N, R = R_1/N)
 -LogLikfun(initials,parameters,dat_csv$totale_attualmente_positivi[c((days-last):days)])
 }
-est<-optim(fn=f1,par=c(logit(0.02),logit(0.2)))
-#estimated par
+est<-optim(fn=f1,par=logit(0.1))
+est
 expit(est$par)
 
-f_exp<-expit(est$par[1])
-sigma<-expit(est$par[2])/3
-parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[days-last-2])+1/duration), sigma = sigma, gamma = 1/duration)
+f_exp<-3*I_1/N
+sigma<-expit(est$par)
+
+parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[(days-last-2)])+1/duration), sigma = sigma, gamma = 1/duration)
 initials <- c(S = (1-(f_exp+I_1/N+R_1/N)), E = f_exp, I = I_1/N, R = R_1/N)
 pro<-SEIR(pars = parameters, init = initials, time = 0:last)
 #predicted vs observed
@@ -374,7 +375,7 @@ sigma
 #mthe unknowrn fraction of exposed people is
 pro$results$E[last+1]
 #that is 
-pro$results$E[last+1]/(I_1/N)
+pro$results$E[last+1]/pro$results$I[last+1]
 #times the infected
 ```
 
@@ -388,7 +389,7 @@ We made a forecast forward of 14 days dropping the first 100 simulation as burn-
 ```{r bsts model fit and prediction, echo=TRUE}
 # Bayesian Structural Time Series
 #we drop the first 6 beta_vec
-ss <- AddLocalLinearTrend(list(), beta_vec[6:(days-4)])
+ss <- AddStudentLocalLinearTrend(list(), beta_vec[6:(days-4)])
 ss <- AddSeasonal(ss, beta_vec[6:(days-4)], nseasons = 7)
 model1 <- bsts(beta_vec[6:(days-4)],
                state.specification = ss,
@@ -471,8 +472,8 @@ We estimate a second scenario using a Random Walk on the basis of the last value
 ```{r  scenario2 sim and plot , echo=TRUE}
 ss<-NULL
 set.seed(123)
-ss <- AddLocalLinearTrend(list(), rnorm(100,beta_vec[days-4],sd_vec[days-4]))
-model1 <- bsts(beta_vec[6:(days-4)],
+ss <-   AddLocalLevel(list(), beta_vec[(days-9):(days-4)],sigma=SdPrior(sd_vec[(days-4)]))
+model1 <- bsts(beta_vec[(days-9):(days-4)],
                state.specification = ss,
                niter = 1000,seed=123)
 par(mfrow = c(1,1))
@@ -507,8 +508,8 @@ colnames(seir2_sim)[1]<-"sim"
 
 ### confidence limits
 I_seir_med<-tapply(seir2_sim$I,seir2_sim$time,median)
-I_seir_lwr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.25)
-I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.75)
+I_seir_lwr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.05)
+I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.95)
 
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
@@ -518,7 +519,7 @@ mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Veneto Region: Scenario 2 (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 2 (Credible Interval ",100*0.90,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
@@ -573,7 +574,7 @@ step.ahead<-forecast+1
 #Scenario 1
 
 I_seir_med<-tapply(seir1_sim$I,seir1_sim$time,median)
-I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.25)
+I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.05)
 I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.75)
 
 mu.lower<-c(dat_csv$terapia_intensiva,I_seir_med*N*((pre$fit-1.645*pre$se.fit)[(days+1):(days+forecast)]))
