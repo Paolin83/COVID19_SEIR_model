@@ -168,11 +168,8 @@ summary(fit_1)
 IRR_mean <- exp(fit_1$summary.random$ID$mean[1:nprov])
 nc.province$IRR_mean<-IRR_mean
 nc.province$DEN_PROV<-droplevels(nc.province$DEN_PROV)
-
 spplot(nc.province, c( "IRR_mean"),main="Incidence Rate Ratios", sp.layout=
          list("sp.text", coordinates(nc.province), nc.province$DEN_PROV, cex=0.7, col="gray"))
-       
-
 ```
 The image reported the IRR=exp($\mu_i$), the increase of the Incidence of Covid-19 in each NUTS-3 Region respect to the overall mean.  
   
@@ -366,10 +363,10 @@ grid.arrange(
 p1,p2,p3,p4,nrow = 2)
 ```
 
-##################predictions 3 days forward of new CODID 19 cases  
+##################predictions 7 days forward of new CODID 19 cases  
   
 ```{r}
-Forecast=3
+Forecast=7
 dat_csv2<-dat_csv 
 dat_csv2$t<-rep(1:days+days,nprov)
 dat_csv2$totale_casi<-NA
@@ -380,15 +377,15 @@ dat_csv_n$t3<-dat_csv_n$t2<-dat_csv_n$t
 # applying a smoothing , data has errors
 hubei_new_cases<-filter(diff(hubei), rep(1, 5))
 
-plot(hubei/58.5,type="l",ylab="COVID19 cases for milion of inhabitant",ylim=c(0,1530),xlab="Days since over 100 cases")
-lines(c(rep(NA,2),cumsum(tapply(dat_csv_n$totale_casi,dat_csv_n$t,sum))/10),col=2)
-abline(v=2,col=1,lty=2)
-abline(v=4,col=2,lty=2)
-abline(v=10,col=3,lty=3)
-legend("bottomright",c("Hubei","Lombardy"),lty=1,col=1:2)
-text(10,1500,"Hubei quarantine")
-text(12,1350,"Lodi home lock",col=2)
-text(20,1200,"Lombardy home lock",col=3)
+#plot(hubei/58.5,type="l",ylab="COVID19 cases for milion of inhabitant",ylim=c(0,1530),xlab="Days since over 100 cases")
+#lines(c(rep(NA,2),cumsum(tapply(dat_csv_n$totale_casi,dat_csv_n$t,sum))/10),col=2)
+#abline(v=2,col=1,lty=2)
+#abline(v=4,col=2,lty=2)
+#abline(v=10,col=3,lty=3)
+#legend("bottomright",c("Hubei","Lombardy"),lty=1,col=1:2)
+#text(10,1500,"Hubei quarantine")
+#text(12,1350,"Lodi home lock",col=2)
+#text(20,1200,"Lombardy home lock",col=3)
 #province of lodi restrictive measure started on 24/02 lag 28 days, at the beginning of the time series
 #other provinces on 11/03 lagged started their restrictions
 hubei_lodi<-hubei_new_cases[1:(days+Forecast)]
@@ -406,12 +403,14 @@ In the rw2 I set constr = FALSE is set to FALSE and that, for this reason, the i
 
 ```{r}
 ## include pop e hubei
-formula.int_n<-  totale_casi ~ 1+log(hubei+1)+log(pop)+ f(ID,model="bym",graph=file.adj) +
-f(t,model="rw2") + f(t2,model="iid") +
-f(t3,model="iid", group=ID2, control.group=list(model="besag", graph=file.adj))
+formula.int_n<-  totale_casi ~ log(pop)+hubei+f(ID,model="bym",graph=file.adj) +
+f(t,model="rw2",constr = FALSE) + f(t2,model="iid") +
+f(over,model="iid")
 
+link = rep(NA, dim(dat_csv_n)[1])
+link[which(is.na(dat_csv_n$totale_casi))] = 1
 
-fit_n<-inla(formula.int_n, family="poisson", data=dat_csv_n,control.compute = list(dic=T),control.predictor = list(link = 1))
+fit_n<-inla(formula.int_n, family="poisson", data=dat_csv_n,control.compute = list(dic=T),control.predictor = list(link = link))
 summary(fit_n)
 ```
 
@@ -426,22 +425,27 @@ s_1<-fit_n$summary.random$ID$mean[1:nprov]
 # spatial idd
 s_2<-fit_n$summary.random$ID$mean[(nprov+1):(nprov*2)] 
 # spatio-temporal coefficients 
-st<-fit_n$summary.random$t3$mean
+st<-fit_n$summary.random$over$mean
 ## Trends for province
 Date_n<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+days+Forecast-1,1)
-trends<-t_1+t(matrix(st,nrow=nprov))
-plot(Date_n,t_1,ylab="RW2 Time coefficient",xlab="Date")
-matplot(t(matrix(st,nrow=nprov)),ylab="RW2 Time coefficient for Province",xlab="Date")
-#extract number of cases for lodi
+trends<-t_1+t(matrix(st,ncol=(days+Forecast)))
+plot(Date_n,t_1,ylab="RW2 Time coefficient",xlab="Date",ylim=range(trends),type="l",lwd=2)
+matlines(Date_n,trends,type="l")
+abline(v=Date_n[days],lty=2)
+```
+
+
+#Forecast for Lodi province
+
+```{r}
 est_lodi<-fit_n$summary.fitted.values[dat_csv_n$denominazione_provincia=="Lodi",]
 
 
 days.before<-Date_n[1:days]
 days.ahead<-Date_n[(days+1):(days+Forecast)]
-mu.lower<-est_lodi$mean-1.96*est_lodi$sd
-mu.lower[mu.lower<0]<-0
-mu.upper<-est_lodi$mean+1.96*est_lodi$sd
-mu.med<-xts(est_lodi$mean,order.by = c(days.before,days.ahead),frequency = 7)
+mu.lower<-est_lodi$`0.025quant`
+mu.upper<-est_lodi$`0.975quant`
+mu.med<-xts(est_lodi$`0.5quant`,order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 step.ahead<-Forecast
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))

@@ -1,12 +1,7 @@
----
-output:
-  pdf_document: default
-  html_document: default
----
 COVID19 - Forecast and predictions using a BYM model in Italy
 ================
 Paolo Girardi
-24 Marzo, 2020
+25 Marzo, 2020
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
 work is licensed under a
@@ -143,7 +138,7 @@ We create new variables that are required by INLA procedure.
     ## 
     ## Time used:
     ##  Pre-processing    Running inla Post-processing           Total 
-    ##          2.4439          1.3345          0.1466          3.9250 
+    ##          2.4459          1.4682          0.2672          4.1814 
     ## 
     ## Fixed effects:
     ##                mean     sd 0.025quant 0.5quant 0.975quant    mode   kld
@@ -196,7 +191,7 @@ errors. ![](INLA_def_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
     ## 
     ## Time used:
     ##  Pre-processing    Running inla Post-processing           Total 
-    ##          2.1472          7.1162          0.1471          9.4104 
+    ##          1.8884          6.7836          0.1213          8.7934 
     ## 
     ## Fixed effects:
     ##               mean     sd 0.025quant 0.5quant 0.975quant   mode kld
@@ -261,11 +256,11 @@ Besag), but are temporally unstructured. -TypeVI: coefficients
 \(\delta_{it}\) have both a spatial and temporal structure. It is the
 most complex type of space-time interaction.
 
-    ## [1] 2373.81
+    ## [1] 2373.575
 
-    ## [1] 2423.391
+    ## [1] 2423.39
 
-    ## [1] 2391.412
+    ## [1] 2391.416
 
     ## [1] 2408.876
 
@@ -283,15 +278,13 @@ province.
 ![](INLA_def_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->![](INLA_def_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->![](INLA_def_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->
 
     ##           used  (Mb) gc trigger  (Mb) limit (Mb) max used  (Mb)
-    ## Ncells 2743704 146.6    4582531 244.8         NA  4582531 244.8
-    ## Vcells 6959359  53.1   12255594  93.6      16384 10146329  77.5
+    ## Ncells 2743715 146.6    4582575 244.8         NA  4582575 244.8
+    ## Vcells 6959683  53.1   12255594  93.6      16384 10146329  77.5
 
 ![](INLA_def_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
-\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#predictions 3 days forward of new
+\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#predictions 7 days forward of new
 CODID 19 cases
-
-![](INLA_def_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 We modelled the number of cases.
 
@@ -300,47 +293,51 @@ reason, the intercept is not included in the linear predictor.
 
     ## 
     ## Call:
-    ## c("inla(formula = formula.int_n, family = \"poisson\", data = dat_csv_n, ",  "    control.compute = list(dic = T), control.predictor = list(link = 1))" )
+    ## c("inla(formula = formula.int_n, family = \"poisson\", data = dat_csv_n, ",  "    control.compute = list(dic = T), control.predictor = list(link = link))" )
     ## 
     ## Time used:
     ##  Pre-processing    Running inla Post-processing           Total 
-    ##          3.2890         51.8123          0.1895         55.2908 
+    ##          2.7898         67.6722          0.2082         70.6702 
     ## 
     ## Fixed effects:
-    ##                  mean     sd 0.025quant 0.5quant 0.975quant   mode kld
-    ## (Intercept)    0.4674 0.3370    -0.1943   0.4674     1.1284 0.4675   0
-    ## log(hubei + 1) 0.1659 0.0297     0.1074   0.1659     0.2240 0.1661   0
-    ## log(pop)       0.0416 0.0253    -0.0081   0.0416     0.0913 0.0417   0
+    ##               mean     sd 0.025quant 0.5quant 0.975quant   mode kld
+    ## (Intercept) 0.6673 0.3182     0.0424   0.6674     1.2913 0.6676   0
+    ## log(pop)    0.0556 0.0239     0.0085   0.0556     0.1025 0.0556   0
+    ## hubei       0.0001 0.0000     0.0000   0.0001     0.0001 0.0001   0
     ## 
     ## Random effects:
     ## Name   Model
     ##  ID   BYM model 
     ## t   RW2 model 
     ## t2   IID model 
-    ## t3   IID model 
+    ## over   IID model 
     ## 
     ## Model hyperparameters:
     ##                                           mean        sd 0.025quant
-    ## Precision for ID (iid component)     7.822e-01 3.134e-01     0.3184
-    ## Precision for ID (spatial component) 1.858e+03 1.835e+03   125.9139
-    ## Precision for t                      1.749e+04 1.761e+04  1075.0826
-    ## Precision for t2                     1.854e+04 1.833e+04  1266.0974
-    ## Precision for t3                     1.817e+00 1.874e-01     1.4737
-    ##                                       0.5quant 0.975quant      mode
-    ## Precision for ID (iid component)     7.347e-01      1.531    0.6389
-    ## Precision for ID (spatial component) 1.317e+03   6712.240  343.8549
-    ## Precision for t                      1.222e+04  64375.222 2867.8223
-    ## Precision for t2                     1.313e+04  67006.273 3458.3718
-    ## Precision for t3                     1.809e+00      2.211    1.7936
+    ## Precision for ID (iid component)        0.7939    0.3218     0.3198
+    ## Precision for ID (spatial component) 1890.1248 1849.3391   126.0569
+    ## Precision for t                       401.7140  398.2981    50.1432
+    ## Precision for t2                        3.5775    1.4267     1.5520
+    ## Precision for over                      1.6947    0.1721     1.3782
+    ##                                       0.5quant 0.975quant    mode
+    ## Precision for ID (iid component)        0.7445      1.565   0.645
+    ## Precision for ID (spatial component) 1345.0353   6783.182 343.784
+    ## Precision for t                       285.7903   1455.365 134.653
+    ## Precision for t2                        3.3258      7.069   2.873
+    ## Precision for over                      1.6873      2.055   1.674
     ## 
-    ## Expected number of effective parameters(std dev): 298.79(2.466)
-    ## Number of equivalent replicates : 1.205 
+    ## Expected number of effective parameters(std dev): 305.10(2.552)
+    ## Number of equivalent replicates : 1.18 
     ## 
-    ## Deviance Information Criterion (DIC) ...............: 2363.07
-    ## Deviance Information Criterion (DIC, saturated) ....: 686.41
-    ## Effective number of parameters .....................: 287.22
+    ## Deviance Information Criterion (DIC) ...............: 2374.92
+    ## Deviance Information Criterion (DIC, saturated) ....: 698.26
+    ## Effective number of parameters .....................: 294.65
     ## 
-    ## Marginal log-Likelihood:  -1608.68 
+    ## Marginal log-Likelihood:  -1716.57 
     ## Posterior marginals for linear predictor and fitted values computed
 
-![](INLA_def_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->![](INLA_def_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->![](INLA_def_files/figure-gfm/unnamed-chunk-17-3.png)<!-- -->
+![](INLA_def_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+
+\#Forecast for Lodi province
+
+![](INLA_def_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->

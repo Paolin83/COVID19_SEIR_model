@@ -95,7 +95,7 @@ days
 Several outcomes can be potentially monitored, that is
 
 ```{r}
-names(dat_csv[,-c(1:2,13)])
+names(dat_csv[,-c(1:2,17:19)])
 
 ```
 
@@ -105,10 +105,10 @@ It is worth noting that some outcomes present negative counts in some regions. I
 Then we extract the timeseries. 
 
 ```{r}
-myDateTimeStr1 <- dat_csv$data
+myDateTimeStr1 <- paste(substr(dat_csv$data,1,10),substr(dat_csv$data,12,19))
 myPOSIXct1 <- as.POSIXct(myDateTimeStr1, format="%Y-%m-%d %H:%M:%S")
 days_dy<-as.Date(myPOSIXct1)
-dat_csv_dy<-xts(dat_csv[,-c(1:2,12:13)], order.by = days_dy, frequency = 7)
+dat_csv_dy<-xts(dat_csv[,-c(1:2,13:15)], order.by = days_dy, frequency = 7)
 ```
 
 ```{r}
