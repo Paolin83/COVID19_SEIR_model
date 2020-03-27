@@ -304,19 +304,7 @@ mu0<-1/(82*365.25) # 1/lifespan
 
 We try to estimates sigma (from exposed to infected) and the number of exposed population on the basis of the last 5 days of observed number of total infected people.  
 
-We suppose that the number of total infected $I(t)$ can be the realization of a Poisson random variable
-$$
-I(t) \sim Poisson (\theta_t)
-$$
-where $\theta_t$ is the unknown mean of the random process at the time $t$.  
-
-The Poisson distribution has a fixed variance that is equal to the mean; in the next part we try to estimates the parameters considering a Negative Binomial distribution which allows for overdispersion.  
-
-However, the parameter $\theta_t$ can be supposed to be a realization of a SEIR model with initial parameters $\theta=(\mu,\beta,\sigma, \gamma)$  and initial status $S=(S_{start},E_{start},I_{start},R_{start})$.  
-
-
-The parameter $\sigma$ is our parameter of interest; we estimate $\sigma$ fixing $E_{start}= 3*I_{start}$ minimizing the log likelihood of the described Poisson distribution (or Negative Binomial one).  
-
+s
 
 ```{r estimation of gamma and exposed, echo=TRUE}
 # number of the last considered days for calibration
