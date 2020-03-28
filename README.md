@@ -1,6 +1,6 @@
 # COVID19 14-days forecast
 Predictions on COVID 19 epidemic using SEIR models
-(analysis updated on 24 March 2020, 11.00)  
+(analysis updated on 28 March 2020, 19.00)  
 ###
 New analysis  
 
