@@ -73,7 +73,7 @@ library("rgdal")
 db_istat<-read.csv("https://raw.githubusercontent.com/Paolin83/COVID19_SEIR_model/master/BYM_model/Elenco-comuni-italiani2.csv",sep=";",header=T,dec=",")
 pop_provincia<-data.frame(codice_provincia=as.numeric(names(table(db_istat[,3]))),pop=tapply(db_istat[,20],db_istat[,3],sum))
 ###import international dataset
-dat_int<-read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv",header=T)
+dat_int<-read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv",header=T)
 hubei<-as.numeric(dat_int[dat_int$Province.State=="Hubei",5:dim(dat_int)[2]])
 
 ###import updated italian dataset  for each province

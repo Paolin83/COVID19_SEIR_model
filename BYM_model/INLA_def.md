@@ -1,7 +1,7 @@
 COVID19 - Forecast and predictions using a BYM model in Italy
 ================
 Paolo Girardi
-25 Marzo, 2020
+30 Marzo, 2020
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
 work is licensed under a
@@ -98,6 +98,10 @@ and load them.
 
 # Datasets loading
 
+    ## Warning in dat_csv$totale_casi[dat_csv$data != "2020-02-24 18:00:00"] <-
+    ## unlist(tapply(dat_csv$totale_casi, : il numero di elementi da sostituire
+    ## non è un multiplo della lunghezza di sostituzione
+
     ## Warning: readShapePoly is deprecated; use rgdal::readOGR or sf::st_read
 
 # Spatial analysis with R-INLA and BYM
@@ -138,11 +142,11 @@ We create new variables that are required by INLA procedure.
     ## 
     ## Time used:
     ##  Pre-processing    Running inla Post-processing           Total 
-    ##          2.4459          1.4682          0.2672          4.1814 
+    ##          3.0132          3.1908          0.3932          6.5972 
     ## 
     ## Fixed effects:
     ##                mean     sd 0.025quant 0.5quant 0.975quant    mode   kld
-    ## (Intercept) -9.3276 0.0657    -9.4646  -9.3276    -9.1907 -9.3276 6e-04
+    ## (Intercept) -9.1279 0.0637    -9.2625  -9.1279    -8.9932 -9.1278 0.001
     ## 
     ## Random effects:
     ## Name   Model
@@ -150,20 +154,20 @@ We create new variables that are required by INLA procedure.
     ## 
     ## Model hyperparameters:
     ##                                         mean      sd 0.025quant 0.5quant
-    ## Precision for ID (iid component)     96.7557 96.7986     6.7748  68.1280
-    ## Precision for ID (spatial component)  0.6252  0.2534     0.2512   0.5866
+    ## Precision for ID (iid component)     94.8509 94.5801     6.5082  66.8721
+    ## Precision for ID (spatial component)  0.9509  0.3915     0.3777   0.8897
     ##                                      0.975quant    mode
-    ## Precision for ID (iid component)        354.651 18.5563
-    ## Precision for ID (spatial component)      1.231  0.5085
+    ## Precision for ID (iid component)        346.818 17.8407
+    ## Precision for ID (spatial component)      1.892  0.7669
     ## 
-    ## Expected number of effective parameters(std dev): 12.15(0.0103)
-    ## Number of equivalent replicates : 29.62 
+    ## Expected number of effective parameters(std dev): 12.22(0.0093)
+    ## Number of equivalent replicates : 35.34 
     ## 
-    ## Deviance Information Criterion (DIC) ...............: 30849.47
-    ## Deviance Information Criterion (DIC, saturated) ....: 29172.81
-    ## Effective number of parameters .....................: 12.16
+    ## Deviance Information Criterion (DIC) ...............: 37088.56
+    ## Deviance Information Criterion (DIC, saturated) ....: 34925.78
+    ## Effective number of parameters .....................: 12.24
     ## 
-    ## Marginal log-Likelihood:  -15475.91 
+    ## Marginal log-Likelihood:  -18598.49 
     ## Posterior marginals for linear predictor and fitted values computed
 
 ![](INLA_def_files/figure-gfm/unnamed-chunk-8-1.png)<!-- --> The image
@@ -176,7 +180,7 @@ the temporal trend of COVID-19 in the reported temporal window. The
 observed number of COVID-19 a the time \(t\), , is modelled as follows  
 \[
 y_{t} \sim Poisson (\lambda_{t})
-\] with t=1,…,30. \\end{center} where the quantity
+\] with t=1,…,36. \\end{center} where the quantity
 \(\frac{\lambda_{t}}\), is modelled by a Random Walk of order 2 variable
 \[
 log({\lambda_{it}})=\alpha+\gamma_t+\phi_t, 
@@ -191,11 +195,11 @@ errors. ![](INLA_def_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
     ## 
     ## Time used:
     ##  Pre-processing    Running inla Post-processing           Total 
-    ##          1.8884          6.7836          0.1213          8.7934 
+    ##          4.1249          8.1949          0.1426         12.4624 
     ## 
     ## Fixed effects:
     ##               mean     sd 0.025quant 0.5quant 0.975quant   mode kld
-    ## (Intercept) 1.8219 0.2994     1.2335   1.8221     2.4086 1.8226   0
+    ## (Intercept) 2.1492 0.2671     1.6248   2.1492     2.6732 2.1492   0
     ## 
     ## Random effects:
     ## Name   Model
@@ -203,18 +207,18 @@ errors. ![](INLA_def_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
     ## t2   IID model 
     ## 
     ## Model hyperparameters:
-    ##                      mean        sd 0.025quant 0.5quant 0.975quant    mode
-    ## Precision for t  3752.477 7307.1653     203.54 1750.058  19800.319 507.374
-    ## Precision for t2    2.262    0.7552       1.09    2.163      4.027   1.969
+    ##                    mean      sd 0.025quant 0.5quant 0.975quant   mode
+    ## Precision for t  558.96 357.841     128.46   477.12    1475.74 323.84
+    ## Precision for t2  28.19   7.976      15.43    27.25      46.49  25.47
     ## 
-    ## Expected number of effective parameters(std dev): 31.20(0.2224)
-    ## Number of equivalent replicates : 11.54 
+    ## Expected number of effective parameters(std dev): 36.24(0.2968)
+    ## Number of equivalent replicates : 11.92 
     ## 
-    ## Deviance Information Criterion (DIC) ...............: 32450.51
-    ## Deviance Information Criterion (DIC, saturated) ....: 30773.85
-    ## Effective number of parameters .....................: 29.81
+    ## Deviance Information Criterion (DIC) ...............: 50638.53
+    ## Deviance Information Criterion (DIC, saturated) ....: 48475.76
+    ## Effective number of parameters .....................: 35.23
     ## 
-    ## Marginal log-Likelihood:  -16398.12 
+    ## Marginal log-Likelihood:  -25513.77 
     ## Posterior marginals for linear predictor and fitted values computed
 
 ![](INLA_def_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->![](INLA_def_files/figure-gfm/unnamed-chunk-9-3.png)<!-- -->
@@ -222,7 +226,7 @@ We now consider a BYM model with spatial and temporal components and
 their complete interactions (Type IV). The observed number of COVID-19,
 , was modelled as: \[
 y_{it} \sim Poisson (\lambda_{it})\\
-\] with i=1,..,12, and t=1,…,30. We modelled the ratio
+\] with i=1,..,12, and t=1,…,36. We modelled the ratio
 \(\frac{\lambda_{it}}{N_{i}}\), the Incidence of COVID-19, with a BYM
 model including temporal covariates as follows  
 \[
@@ -256,13 +260,13 @@ Besag), but are temporally unstructured. -TypeVI: coefficients
 \(\delta_{it}\) have both a spatial and temporal structure. It is the
 most complex type of space-time interaction.
 
-    ## [1] 2373.575
+    ## [1] 3073.61
 
-    ## [1] 2423.39
+    ## [1] 3087.757
 
-    ## [1] 2391.416
+    ## [1] 3072.782
 
-    ## [1] 2408.876
+    ## [1] 3072.805
 
 The time and space component mean estimates can be extracted here
 
@@ -278,8 +282,8 @@ province.
 ![](INLA_def_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->![](INLA_def_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->![](INLA_def_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->
 
     ##           used  (Mb) gc trigger  (Mb) limit (Mb) max used  (Mb)
-    ## Ncells 2743715 146.6    4582575 244.8         NA  4582575 244.8
-    ## Vcells 6959683  53.1   12255594  93.6      16384 10146329  77.5
+    ## Ncells 2753205 147.1    4581944 244.8         NA  4581944 244.8
+    ## Vcells 7162042  54.7   12255594  93.6      16384 10146329  77.5
 
 ![](INLA_def_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
@@ -297,13 +301,13 @@ reason, the intercept is not included in the linear predictor.
     ## 
     ## Time used:
     ##  Pre-processing    Running inla Post-processing           Total 
-    ##          2.7898         67.6722          0.2082         70.6702 
+    ##          3.1972         85.4394          0.7757         89.4124 
     ## 
     ## Fixed effects:
     ##               mean     sd 0.025quant 0.5quant 0.975quant   mode kld
-    ## (Intercept) 0.6673 0.3182     0.0424   0.6674     1.2913 0.6676   0
-    ## log(pop)    0.0556 0.0239     0.0085   0.0556     0.1025 0.0556   0
-    ## hubei       0.0001 0.0000     0.0000   0.0001     0.0001 0.0001   0
+    ## (Intercept) 0.7587 0.2926     0.1839   0.7587     1.3324 0.7589   0
+    ## log(pop)    0.0635 0.0221     0.0201   0.0635     0.1067 0.0635   0
+    ## hubei       0.0000 0.0000     0.0000   0.0000     0.0001 0.0000   0
     ## 
     ## Random effects:
     ## Name   Model
@@ -314,26 +318,26 @@ reason, the intercept is not included in the linear predictor.
     ## 
     ## Model hyperparameters:
     ##                                           mean        sd 0.025quant
-    ## Precision for ID (iid component)        0.7939    0.3218     0.3198
-    ## Precision for ID (spatial component) 1890.1248 1849.3391   126.0569
-    ## Precision for t                       401.7140  398.2981    50.1432
-    ## Precision for t2                        3.5775    1.4267     1.5520
-    ## Precision for over                      1.6947    0.1721     1.3782
-    ##                                       0.5quant 0.975quant    mode
-    ## Precision for ID (iid component)        0.7445      1.565   0.645
-    ## Precision for ID (spatial component) 1345.0353   6783.182 343.784
-    ## Precision for t                       285.7903   1455.365 134.653
-    ## Precision for t2                        3.3258      7.069   2.873
-    ## Precision for over                      1.6873      2.055   1.674
+    ## Precision for ID (iid component)     1.147e+00 4.985e-01     0.4373
+    ## Precision for ID (spatial component) 1.836e+03 1.825e+03   125.7771
+    ## Precision for t                      5.572e+02 3.882e+02   109.3506
+    ## Precision for t2                     1.836e+04 1.825e+04  1279.9079
+    ## Precision for over                   5.613e-01 4.660e-02     0.4741
+    ##                                       0.5quant 0.975quant      mode
+    ## Precision for ID (iid component)     1.062e+00  2.362e+00    0.8980
+    ## Precision for ID (spatial component) 1.296e+03  6.661e+03  343.8411
+    ## Precision for t                      4.638e+02  1.561e+03  288.3685
+    ## Precision for t2                     1.297e+04  6.655e+04 3524.8877
+    ## Precision for over                   5.598e-01  6.575e-01    0.5574
     ## 
-    ## Expected number of effective parameters(std dev): 305.10(2.552)
-    ## Number of equivalent replicates : 1.18 
+    ## Expected number of effective parameters(std dev): 412.69(1.509)
+    ## Number of equivalent replicates : 1.047 
     ## 
-    ## Deviance Information Criterion (DIC) ...............: 2374.92
-    ## Deviance Information Criterion (DIC, saturated) ....: 698.26
-    ## Effective number of parameters .....................: 294.65
+    ## Deviance Information Criterion (DIC) ...............: 3078.39
+    ## Deviance Information Criterion (DIC, saturated) ....: 915.61
+    ## Effective number of parameters .....................: 400.49
     ## 
-    ## Marginal log-Likelihood:  -1716.57 
+    ## Marginal log-Likelihood:  -2353.42 
     ## Posterior marginals for linear predictor and fitted values computed
 
 ![](INLA_def_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
