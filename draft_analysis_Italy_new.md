@@ -2,7 +2,7 @@ COVID19 - Forecast and predictions using a time dependent SEIR model -
 Italy
 ================
 Paolo Girardi
-30 Marzo, 2020
+02 Aprile, 2020
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
 work is licensed under a
@@ -133,7 +133,7 @@ dat_csv$t<-1:days
 days
 ```
 
-    ## [1] 36
+    ## [1] 38
 
 Several outcomes can be potentially monitored, that is
 
@@ -141,13 +141,13 @@ Several outcomes can be potentially monitored, that is
 names(dat_csv[,-c(1:2,17:19)])
 ```
 
-    ##  [1] "ricoverati_con_sintomi"      "terapia_intensiva"          
-    ##  [3] "totale_ospedalizzati"        "isolamento_domiciliare"     
-    ##  [5] "totale_attualmente_positivi" "nuovi_attualmente_positivi" 
-    ##  [7] "dimessi_guariti"             "deceduti"                   
-    ##  [9] "totale_casi"                 "tamponi"                    
-    ## [11] "note_it"                     "note_en"                    
-    ## [13] "t"
+    ##  [1] "ricoverati_con_sintomi"     "terapia_intensiva"         
+    ##  [3] "totale_ospedalizzati"       "isolamento_domiciliare"    
+    ##  [5] "totale_positivi"            "variazione_totale_positivi"
+    ##  [7] "nuovi_positivi"             "dimessi_guariti"           
+    ##  [9] "deceduti"                   "totale_casi"               
+    ## [11] "tamponi"                    "note_it"                   
+    ## [13] "note_en"                    "t"
 
 It is worth noting that some outcomes present negative counts in some
 regions. It looks like some of these negative counts are redesignations.
@@ -216,12 +216,11 @@ Taking logs of both sides, we get
 
 \[\log{I}(t)\;\approx\;\log{I_0}+(R_0-1)\,(\gamma+\mu)\,t,\] which
 implies that a semi-log plot of \(I\) vs \(t\) should be approximately
-linear with a slope proportional to \(R_0\) and the recovery
-rate.
+linear with a slope proportional to \(R_0\) and the recovery rate.
 
 ``` r
-dat_csv_dy$log_totale_attualmente_positivi<-log(dat_csv_dy$totale_attualmente_positivi)
-p <- dygraph(dat_csv_dy$log_totale_attualmente_positivi,main=paste("Italy"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
+dat_csv_dy$log_totale_positivi<-log(dat_csv_dy$totale_positivi)
+p <- dygraph(dat_csv_dy$log_totale_positivi,main=paste("Italy"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
 p
 ```
 
@@ -273,7 +272,7 @@ beta_vec<-NULL
 sd_vec<-NULL
 #for cycle for R0 estimates from days-2 to days+2
 for (i in 3:(days-2)){
-fit <- lm(log(totale_attualmente_positivi)~t,data=dat_csv[(i-2):(i+2),])
+fit <- lm(log(totale_positivi)~t,data=dat_csv[(i-2):(i+2),])
 beta_vec<-c(beta_vec,coef(fit)[2])
 sd_vec<-c(sd_vec,coef(summary(fit))[2,2])
 }
@@ -319,22 +318,22 @@ summary(beta.model)
     ## 
     ## Deviance Residuals: 
     ##      Min        1Q    Median        3Q       Max  
-    ## -0.48642  -0.07822   0.02091   0.10926   0.52140  
+    ## -0.47047  -0.06727   0.00761   0.10637   0.53475  
     ## 
     ## Coefficients:
     ##                           Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)              0.2948367  0.0081374  36.232  < 2e-16 ***
-    ## time                    -0.0072608  0.0003199 -22.695  < 2e-16 ***
-    ## I(cos(time * 2 * pi/7)) -0.0017166  0.0041267  -0.416 0.680598    
-    ## I(sin(time * 2 * pi/7)) -0.0140967  0.0037759  -3.733 0.000855 ***
+    ## (Intercept)              0.2936526  0.0077905  37.694  < 2e-16 ***
+    ## time                    -0.0071880  0.0002928 -24.547  < 2e-16 ***
+    ## I(cos(time * 2 * pi/7)) -0.0008389  0.0036725  -0.228 0.820868    
+    ## I(sin(time * 2 * pi/7)) -0.0133727  0.0036126  -3.702 0.000861 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## (Dispersion parameter for gaussian family taken to be 0.04755799)
+    ## (Dispersion parameter for gaussian family taken to be 0.04564617)
     ## 
-    ##     Null deviance: 26.8516  on 31  degrees of freedom
-    ## Residual deviance:  1.3316  on 28  degrees of freedom
-    ## AIC: -160.67
+    ##     Null deviance: 30.7294  on 33  degrees of freedom
+    ## Residual deviance:  1.3694  on 30  degrees of freedom
+    ## AIC: -173.8
     ## 
     ## Number of Fisher Scoring iterations: 2
 
@@ -352,10 +351,10 @@ anova(beta.model,test="Chisq")
     ## 
     ## 
     ##                         Df Deviance Resid. Df Resid. Dev  Pr(>Chi)    
-    ## NULL                                       31    26.8516              
-    ## time                     1  24.8558        30     1.9958 < 2.2e-16 ***
-    ## I(cos(time * 2 * pi/7))  1   0.0013        29     1.9945  0.866657    
-    ## I(sin(time * 2 * pi/7))  1   0.6628        28     1.3316  0.000189 ***
+    ## NULL                                       33    30.7294              
+    ## time                     1  28.7333        32     1.9961 < 2.2e-16 ***
+    ## I(cos(time * 2 * pi/7))  1   0.0013        31     1.9949 0.8678717    
+    ## I(sin(time * 2 * pi/7))  1   0.6255        30     1.3694 0.0002142 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -384,7 +383,7 @@ p
 ![](draft_analysis_Italy_new_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
 R0 passes from a value of NA in the initial phase to an estimated value
-of -0.45 at the ending of the 14-days forecast.  
+of -0.53 at the ending of the 14-days forecast.  
 We use the library(EpiDynamics) and the function SEIR() to implement a
 SEIR model:
 
@@ -420,10 +419,10 @@ and parameters:
 
 ``` r
 # initial number of infectus
-I_start<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I_start
+I_start<-dat_csv$totale_positivi[dim(dat_csv)[1]]; I_start
 ```
 
-    ## [1] 75528
+    ## [1] 80572
 
 ``` r
 # initial number of recovered, based on the proportion of discharged from the health services
@@ -431,7 +430,7 @@ prop<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]/dat_csv$totale_ospedalizzati[dim(
 R_start<-prop*dat_csv$totale_casi[dim(dat_csv)[1]]; R_start
 ```
 
-    ## [1] 46809.67
+    ## [1] 57427.71
 
 ``` r
 # Italian population
@@ -452,7 +451,7 @@ s
 # number of the last considered days for calibration
 last<-10
 #I_start
-I_1<-dat_csv$totale_attualmente_positivi[(days-last)]
+I_1<-dat_csv$totale_positivi[(days-last)]
 #R_start
 R_1<-prop*dat_csv$totale_casi[(days-last)]
 #loglikelihood function
@@ -476,7 +475,7 @@ sigma<-expit(par)
 f_exp<-3*I_1/N
 parameters <- c(mu = mu0, beta =(mean(beta_vec[1:(days-last-2)])+1/duration), sigma = sigma, gamma =1/duration)
 initials <- c(S = (1-(f_exp+I_1/N-R_start/N)), E = f_exp, I = I_1/N, R = R_1/N)
--LogLikfun(initials,parameters,dat_csv$totale_attualmente_positivi[c((days-last):days)])
+-LogLikfun(initials,parameters,dat_csv$totale_positivi[c((days-last):days)])
 }
 est<-optim(fn=f1,par=logit(0.1))
 ```
@@ -489,7 +488,7 @@ est<-optim(fn=f1,par=logit(0.1))
 expit(est$par)
 ```
 
-    ## [1] 0.0511054
+    ## [1] 0.04176733
 
 ``` r
 sigma<-expit(est$par)
@@ -498,21 +497,21 @@ parameters <- c(mu = mu0, beta =(mean(beta_vec[1:(days-last-2)])+1/duration), si
 initials <- c(S = (1-(f_exp+I_1/N-R_1/N)), E = f_exp, I = I_1/N, R = R_1/N)
 pro<-SEIR(pars = parameters, init = initials, time = 0:last)
 #predicted vs observed
-cbind(pro$results$I*N,dat_csv$totale_attualmente_positivi[c((days-last):days)])
+cbind(pro$results$I*N,dat_csv$totale_positivi[c((days-last):days)])
 ```
 
     ##           [,1]  [,2]
-    ##  [1,] 37860.00 37860
-    ##  [2,] 41561.71 42681
-    ##  [3,] 45284.41 46638
-    ##  [4,] 49061.49 50418
-    ##  [5,] 52923.45 54030
-    ##  [6,] 56898.38 57521
-    ##  [7,] 61012.61 62013
-    ##  [8,] 65291.04 66414
-    ##  [9,] 69757.61 70065
-    ## [10,] 74435.56 73880
-    ## [11,] 79347.74 75528
+    ##  [1,] 46638.00 46638
+    ##  [2,] 49919.60 50418
+    ##  [3,] 53271.45 54030
+    ##  [4,] 56712.13 57521
+    ##  [5,] 60259.17 62013
+    ##  [6,] 63929.20 66414
+    ##  [7,] 67738.22 70065
+    ##  [8,] 71701.73 73880
+    ##  [9,] 75834.94 75528
+    ## [10,] 80152.88 77635
+    ## [11,] 84668.66 80572
 
 The values of initial parameters are
 
@@ -528,7 +527,7 @@ mu0;
 sigma
 ```
 
-    ## [1] 0.0511054
+    ## [1] 0.04176733
 
 ``` r
 #gamma
@@ -542,14 +541,14 @@ sigma
 pro$results$E[last+1];
 ```
 
-    ## [1] 0.003056078
+    ## [1] 0.003692631
 
 ``` r
 #that is 
 pro$results$E[last+1]/pro$results$I[last+1]
 ```
 
-    ## [1] 2.329387
+    ## [1] 2.637697
 
 ``` r
 #times the infected
@@ -572,16 +571,16 @@ model1 <- bsts(beta_vec,
                niter = 1000,seed=123)
 ```
 
-    ## =-=-=-=-= Iteration 0 Mon Mar 30 22:49:25 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Mon Mar 30 22:49:25 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Mon Mar 30 22:49:25 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Mon Mar 30 22:49:25 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Mon Mar 30 22:49:25 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Mon Mar 30 22:49:25 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Mon Mar 30 22:49:26 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Mon Mar 30 22:49:26 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Mon Mar 30 22:49:26 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Mon Mar 30 22:49:26 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Thu Apr  2 12:42:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Thu Apr  2 12:42:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Thu Apr  2 12:42:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Thu Apr  2 12:42:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Thu Apr  2 12:42:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Thu Apr  2 12:42:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Thu Apr  2 12:42:57 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Thu Apr  2 12:42:58 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Thu Apr  2 12:42:58 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Thu Apr  2 12:42:58 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
@@ -638,9 +637,9 @@ I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.75)
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
 step.ahead<-forecast+1
-mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
-mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
-mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
+mu.lower<-c(dat_csv$totale_positivi,I_seir_lwr*N)
+mu.upper<-c(dat_csv$totale_positivi,I_seir_upr*N)
+mu.med<-xts(c(dat_csv$totale_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
 p <- dygraph(mu,main=paste("Italy: Scenario  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
@@ -650,10 +649,10 @@ p
 
 ![](draft_analysis_Italy_new_files/figure-gfm/scenario%20plot%20-1.png)<!-- -->
 
-At the end of the 2 weeks (2020-04-13): \*the number of infected is
-(9.474742610^{4}).
+At the end of the 2 weeks (2020-04-15): \*the number of infected is
+(1.126062210^{5}).
 
-\*the total number of COVID19 cases is expected to be (2.149009410^{5}).
+\*the total number of COVID19 cases is expected to be (2.497883110^{5}).
 
 The estimated (median) numbers of the current scenario by date are:
 
@@ -667,19 +666,19 @@ rownames(forecast)<-days.ahead
 kable(forecast)
 ```
 
-|            | Susceptible |   Exposed |  Infected |   Removed |
-| ---------- | ----------: | --------: | --------: | --------: |
-| 2020-03-31 |    60169772 | 178607.46 |  80478.69 |  51141.58 |
-| 2020-04-01 |    60166696 | 172739.78 |  84862.47 |  55732.58 |
-| 2020-04-02 |    60163635 | 167144.55 |  88729.02 |  60552.75 |
-| 2020-04-03 |    60160622 | 161901.65 |  92083.63 |  65573.57 |
-| 2020-04-04 |    60158958 | 155491.42 |  94976.31 |  70764.64 |
-| 2020-04-05 |    60159960 | 146770.34 |  97307.42 |  76101.98 |
-| 2020-04-06 |    60163553 | 136001.48 |  99121.25 |  81555.84 |
-| 2020-04-07 |    60168721 | 124447.19 | 100267.81 |  87089.60 |
-| 2020-04-08 |    60174571 | 111851.60 | 100622.74 |  92670.68 |
-| 2020-04-09 |    60179502 | 101497.86 | 100637.03 |  98266.47 |
-| 2020-04-10 |    60185320 |  90878.78 |  99891.29 | 103828.11 |
-| 2020-04-11 |    60191711 |  80470.73 |  98783.71 | 109339.37 |
-| 2020-04-12 |    60202217 |  67262.47 |  96791.90 | 114810.98 |
-| 2020-04-13 |    60211210 |  52841.95 |  94747.43 | 120153.51 |
+|            | Susceptible |  Exposed |  Infected |   Removed |
+| ---------- | ----------: | -------: | --------: | --------: |
+| 2020-04-02 |    60112059 | 220673.5 |  85235.85 |  62031.51 |
+| 2020-04-03 |    60104810 | 218757.6 |  89551.61 |  66884.62 |
+| 2020-04-04 |    60098389 | 216110.1 |  93538.80 |  71967.86 |
+| 2020-04-05 |    60093378 | 212217.0 |  97172.04 |  77263.45 |
+| 2020-04-06 |    60090328 | 206526.2 | 100432.99 |  82749.23 |
+| 2020-04-07 |    60088442 | 199878.7 | 103242.49 |  88406.22 |
+| 2020-04-08 |    60086147 | 193788.2 | 105652.76 |  94207.52 |
+| 2020-04-09 |    60083468 | 188686.1 | 107708.42 | 100130.48 |
+| 2020-04-10 |    60080597 | 183768.8 | 109426.48 | 106156.15 |
+| 2020-04-11 |    60079733 | 177102.4 | 110841.20 | 112261.09 |
+| 2020-04-12 |    60080241 | 169228.4 | 111957.39 | 118433.55 |
+| 2020-04-13 |    60082207 | 160555.0 | 112615.07 | 124673.69 |
+| 2020-04-14 |    60086406 | 149432.8 | 112830.09 | 130947.96 |
+| 2020-04-15 |    60091823 | 139469.6 | 112606.22 | 137182.09 |

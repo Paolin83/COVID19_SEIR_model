@@ -158,8 +158,8 @@ $$\log{I}(t)\;\approx\;\log{I_0}+(R_0-1)\,(\gamma+\mu)\,t,$$
 which implies that a semi-log plot of $I$ vs $t$ should be approximately linear with a slope proportional to $R_0$ and the recovery rate.
 
 ```{r}
-dat_csv_dy$log_totale_attualmente_positivi<-log(dat_csv_dy$totale_attualmente_positivi)
-p <- dygraph(dat_csv_dy$log_totale_attualmente_positivi,main=paste("Italy"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
+dat_csv_dy$log_totale_positivi<-log(dat_csv_dy$totale_positivi)
+p <- dygraph(dat_csv_dy$log_totale_positivi,main=paste("Italy"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
 p
 ```
 
@@ -204,7 +204,7 @@ beta_vec<-NULL
 sd_vec<-NULL
 #for cycle for R0 estimates from days-2 to days+2
 for (i in 3:(days-2)){
-fit <- lm(log(totale_attualmente_positivi)~t,data=dat_csv[(i-2):(i+2),])
+fit <- lm(log(totale_positivi)~t,data=dat_csv[(i-2):(i+2),])
 beta_vec<-c(beta_vec,coef(fit)[2])
 sd_vec<-c(sd_vec,coef(summary(fit))[2,2])
 }
@@ -290,7 +290,7 @@ and parameters:
 
 ```{r ini parameters plot, echo=TRUE}
 # initial number of infectus
-I_start<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I_start
+I_start<-dat_csv$totale_positivi[dim(dat_csv)[1]]; I_start
 # initial number of recovered, based on the proportion of discharged from the health services
 prop<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]/dat_csv$totale_ospedalizzati[dim(dat_csv)[1]]
 R_start<-prop*dat_csv$totale_casi[dim(dat_csv)[1]]; R_start
@@ -310,7 +310,7 @@ s
 # number of the last considered days for calibration
 last<-10
 #I_start
-I_1<-dat_csv$totale_attualmente_positivi[(days-last)]
+I_1<-dat_csv$totale_positivi[(days-last)]
 #R_start
 R_1<-prop*dat_csv$totale_casi[(days-last)]
 #loglikelihood function
@@ -334,7 +334,7 @@ sigma<-expit(par)
 f_exp<-3*I_1/N
 parameters <- c(mu = mu0, beta =(mean(beta_vec[1:(days-last-2)])+1/duration), sigma = sigma, gamma =1/duration)
 initials <- c(S = (1-(f_exp+I_1/N-R_start/N)), E = f_exp, I = I_1/N, R = R_1/N)
--LogLikfun(initials,parameters,dat_csv$totale_attualmente_positivi[c((days-last):days)])
+-LogLikfun(initials,parameters,dat_csv$totale_positivi[c((days-last):days)])
 }
 est<-optim(fn=f1,par=logit(0.1))
 #estimated par
@@ -345,7 +345,7 @@ parameters <- c(mu = mu0, beta =(mean(beta_vec[1:(days-last-2)])+1/duration), si
 initials <- c(S = (1-(f_exp+I_1/N-R_1/N)), E = f_exp, I = I_1/N, R = R_1/N)
 pro<-SEIR(pars = parameters, init = initials, time = 0:last)
 #predicted vs observed
-cbind(pro$results$I*N,dat_csv$totale_attualmente_positivi[c((days-last):days)])
+cbind(pro$results$I*N,dat_csv$totale_positivi[c((days-last):days)])
 ```
 
 The values of initial parameters are
@@ -419,9 +419,9 @@ I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.75)
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
 step.ahead<-forecast+1
-mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
-mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
-mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
+mu.lower<-c(dat_csv$totale_positivi,I_seir_lwr*N)
+mu.upper<-c(dat_csv$totale_positivi,I_seir_upr*N)
+mu.med<-xts(c(dat_csv$totale_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
 p <- dygraph(mu,main=paste("Italy: Scenario  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")

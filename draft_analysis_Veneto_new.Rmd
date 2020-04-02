@@ -90,7 +90,7 @@ days
 Several outcomes can be potentially monitored, that is
 
 ```{r}
-names(dat_csv[,-c(1:2,17:19)])
+names(dat_csv[,-c(1:6,18:20)])
 
 ```
 
@@ -103,7 +103,7 @@ Then we extract the timeseries.
 myDateTimeStr1 <- paste(substr(dat_csv$data,1,10),substr(dat_csv$data,12,19))
 myPOSIXct1 <- as.POSIXct(myDateTimeStr1, format="%Y-%m-%d %H:%M:%S")
 days_dy<-as.Date(myPOSIXct1)
-dat_csv_dy<-xts(dat_csv[,-c(1:7,17:19)], order.by = days_dy, frequency = 7)
+dat_csv_dy<-xts(dat_csv[,-c(1:6,18:20)], order.by = days_dy, frequency = 7)
 ```
 
 ```{r}
@@ -157,8 +157,8 @@ $$\log{I}(t)\;\approx\;\log{I_0}+(R_0-1)\,(\gamma+\mu)\,t,$$
 which implies that a semi-log plot of $I$ vs $t$ should be approximately linear with a slope proportional to $R_0$ and the recovery rate.
 
 ```{r}
-dat_csv_dy$log_totale_attualmente_positivi<-log(dat_csv_dy$totale_attualmente_positivi)
-p <- dygraph(dat_csv_dy$log_totale_attualmente_positivi,main=paste("Veneto Region"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
+dat_csv_dy$log_totale_positivi<-log(dat_csv_dy$totale_positivi)
+p <- dygraph(dat_csv_dy$log_totale_positivi,main=paste("Veneto Region"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
 p
 ```
 
@@ -203,7 +203,7 @@ beta_vec<-NULL
 sd_vec<-NULL
 #for cycle for R0 estimates from days-2 to days+2
 for (i in 3:(days-2)){
-fit <- lm(log(totale_attualmente_positivi)~t,data=dat_csv[(i-2):(i+2),])
+fit <- lm(log(totale_positivi)~t,data=dat_csv[(i-2):(i+2),])
 beta_vec<-c(beta_vec,coef(fit)[2])
 sd_vec<-c(sd_vec,coef(summary(fit))[2,2])
 }
@@ -290,7 +290,7 @@ and parameters:
 
 ```{r ini parameters plot, echo=TRUE}
 # initial number of infectus
-I_start<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I_start
+I_start<-dat_csv$totale_positivi[dim(dat_csv)[1]]; I_start
 # initial number of recovered, based on the proportion of discharged from the health services
 prop<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]/dat_csv$totale_ospedalizzati[dim(dat_csv)[1]]
 R_start<-prop*dat_csv$totale_casi[dim(dat_csv)[1]]; R_start
@@ -320,7 +320,7 @@ The parameter $\sigma$ is our parameter of interest; we estimate $\sigma$ fixing
 # number of the last considered days for calibration
 last<-10
 #I_start
-I_1<-dat_csv$totale_attualmente_positivi[(days-last)]
+I_1<-dat_csv$totale_positivi[(days-last)]
 #R_start
 R_1<-prop*dat_csv$totale_casi[(days-last)]
 #loglikelihood function
@@ -345,7 +345,7 @@ sigma<-expit(par)
 f_exp<-3*I_1/N
 parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[(days-last-2)])+1/duration), sigma = sigma, gamma =1/duration)
 initials <- c(S = (1-(f_exp+I_1/N+R_start/N)), E = f_exp, I = I_1/N, R = R_1/N)
--LogLikfun(initials,parameters,dat_csv$totale_attualmente_positivi[c((days-last):days)])
+-LogLikfun(initials,parameters,dat_csv$totale_positivi[c((days-last):days)])
 }
 est<-optim(fn=f1,par=logit(0.1))
 est
@@ -358,7 +358,7 @@ parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[(days-last-2)])+1/duration)
 initials <- c(S = (1-(f_exp+I_1/N+R_1/N)), E = f_exp, I = I_1/N, R = R_1/N)
 pro<-SEIR(pars = parameters, init = initials, time = 0:last)
 #predicted vs observed
-cbind(pro$results$I*N,dat_csv$totale_attualmente_positivi[c((days-last):days)])
+cbind(pro$results$I*N,dat_csv$totale_positivi[c((days-last):days)])
 ```
 
 The values of initial parameters are
@@ -438,9 +438,9 @@ I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.75)
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
 step.ahead<-forecast+1
-mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
-mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
-mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
+mu.lower<-c(dat_csv$totale_positivi,I_seir_lwr*N)
+mu.upper<-c(dat_csv$totale_positivi,I_seir_upr*N)
+mu.med<-xts(c(dat_csv$totale_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
 p <- dygraph(mu,main=paste("Veneto Region: Scenario 1 (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
@@ -514,9 +514,9 @@ I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.95)
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
 step.ahead<-forecast+1
-mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
-mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
-mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
+mu.lower<-c(dat_csv$totale_positivi,I_seir_lwr*N)
+mu.upper<-c(dat_csv$totale_positivi,I_seir_upr*N)
+mu.med<-xts(c(dat_csv$totale_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
 p <- dygraph(mu,main=paste("Veneto Region: Scenario 2 (Credible Interval ",100*0.90,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
@@ -550,7 +550,7 @@ We report the number of intensive care patients on the basis of the estimated CO
 
 
 ```{r  intensive care numbers, echo=TRUE}
-fit_int_care<-glm(cbind(terapia_intensiva,totale_attualmente_positivi-terapia_intensiva)~t,family=binomial,data=dat_csv)
+fit_int_care<-glm(cbind(terapia_intensiva,totale_positivi-terapia_intensiva)~t,family=binomial,data=dat_csv)
 
 
 
@@ -559,8 +559,8 @@ forecast=14
 # add 'fit', 'lwr', and 'upr' columns to dataframe (generated by predict)
 pre<-predict(fit_int_care,type='response',newdata=data.frame(t=1:(days+forecast)),se.fit=TRUE)
 date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast-1+dim(dat_csv)[1],1)
-plot(date,pre$fit,type="l",main="Proportion of admitted COVID 19 in intensive care",ylim=range(dat_csv$terapia_intensiva/dat_csv$totale_attualmente_positivi))
-points(date[1:days],dat_csv$terapia_intensiva/dat_csv$totale_attualmente_positivi)
+plot(date,pre$fit,type="l",main="Proportion of admitted COVID 19 in intensive care",ylim=range(dat_csv$terapia_intensiva/dat_csv$totale_positivi))
+points(date[1:days],dat_csv$terapia_intensiva/dat_csv$totale_positivi)
 lines(date,pre$fit+1.96*pre$se.fit,col=3,lty=2)
 lines(date,pre$fit-1.96*pre$se.fit,col=3,lty=2)
 legend("topright",c("fitted","95% Confidence Interval"),lty=1:2,col=c(1,3))
