@@ -95,7 +95,7 @@ days
 Several outcomes can be potentially monitored, that is
 
 ```{r}
-names(dat_csv[,-c(1:2,13)])
+names(dat_csv[,-c(1:6,18:20)])
 
 ```
 
@@ -108,7 +108,7 @@ Then we extract the timeseries.
 myDateTimeStr1 <- paste(substr(dat_csv$data,1,10),substr(dat_csv$data,12,19))
 myPOSIXct1 <- as.POSIXct(myDateTimeStr1, format="%Y-%m-%d %H:%M:%S")
 days_dy<-as.Date(myPOSIXct1)
-dat_csv_dy<-xts(dat_csv[,-c(1:7,17:19)], order.by = days_dy, frequency = 7)
+dat_csv_dy<-xts(dat_csv[,-c(1:6,18:20)], order.by = days_dy, frequency = 7)
 ```
 
 ```{r}
@@ -162,8 +162,8 @@ $$\log{I}(t)\;\approx\;\log{I_0}+(R_0-1)\,(\gamma+\mu)\,t,$$
 which implies that a semi-log plot of $I$ vs $t$ should be approximately linear with a slope proportional to $R_0$ and the recovery rate.
 
 ```{r}
-dat_csv_dy$log_totale_attualmente_positivi<-log(dat_csv_dy$totale_attualmente_positivi)
-p <- dygraph(dat_csv_dy$log_totale_attualmente_positivi,main=paste("Veneto Region"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
+dat_csv_dy$log_totale_positivi<-log(dat_csv_dy$totale_positivi)
+p <- dygraph(dat_csv_dy$log_totale_positivi,main=paste("Veneto Region"),ylab="Log Infected case",xlab="Day",height=400,width=800) 
 p
 ```
 
@@ -204,21 +204,21 @@ We calculate several R0 values, each one based on a mobile window of 5 days, tha
 #calculate r0 based with a mobile window of 5 days
 #vector for beta and standard deviation
 duration<-18
-beta_vec<-NULL
-sd_vec<-NULL
+beta1<-NULL
+sd_beta1<-NULL
 #for cycle for R0 estimates from days-2 to days+2
 for (i in 3:(days-2)){
-fit <- lm(log(totale_attualmente_positivi)~t,data=dat_csv[(i-2):(i+2),])
-beta_vec<-c(beta_vec,coef(fit)[2])
-sd_vec<-c(sd_vec,coef(summary(fit))[2,2])
+fit <- lm(log(totale_positivi)~t,data=dat_csv[(i-2):(i+2),])
+beta1<-c(beta1,coef(fit)[2])
+sd_beta1<-c(sd_beta1,coef(summary(fit))[2,2])
 }
 
 label<-as.Date(substr(dat_csv$data,1,10))[3:(days-2)]
 
 
-mean  <- 1+(beta_vec*duration)
-lower <- 1+((beta_vec-1.96*sd_vec)*duration)
-upper <- 1+((beta_vec+1.96*sd_vec)*duration)
+mean  <- 1+(beta1*duration)
+lower <- 1+((beta1-1.96*sd_beta1)*duration)
+upper <- 1+((beta1+1.96*sd_beta1)*duration)
 
 df <- data.frame(label, mean, lower, upper)
 
@@ -234,28 +234,53 @@ print(fp)
 ```
 
 The R0 shows a decreasing trend in the last period. We use the estimated trend between R0 and time to calculate the future R0 value for the next 14 days. 
-We predict beta (and R0) for the next 14 days by means of a linear regressione model, assuming a Normal distribution for the beta (the slope).
+We predict beta (and R0) for the next 14 days by means of a linear regressione model, assuming a Log-Normal distribution for the the $\beta1$ and as consequence for the $\beta$ for the regression, rescaled of $1/\gamma$.
+We implement function to deal with log-normal distribution, in order to recover the parameter $\mu$ and $\sigma$ belonging normal distribution starting from this one:
+$$\beta_{LogN}(t) \sim Log N (\beta_1(t)+\frac{1}{\gamma}, \sigma_{\beta_1(t)}^2)$$
+In order to deal with estimations of $\hat\beta_1(t)$ that we have estimated before, we adopted an inverse transformation as reported here https://ocw.mit.edu/courses/civil-and-environmental-engineering/1-151-probability-and-statistics-in-engineering-spring-2005/lecture-notes/briefnts8_relnl.pdf.
+The following formulas provide us the mean and variance of the normal distribution 
+
+$$\beta_{N}(t) \sim N (\mu_{\beta_N},\sigma_{\beta_N}^2)$$
+derived from the log-normal distribution $\beta_{LogN}(t)$. 
+$$\mu_{\beta_N} =e^{\mu_{\beta_{LogN}}+0.5*\sigma_{\beta_{LogN}}^2}$$
+
+$$\sigma_{\beta_N}^2 =-2\log(\mu_{\beta_{LogN}})+\log(\mu_{\beta_{LogN}}^2+\sigma_{\beta_{LogN}}^2)$$
+This transformation permits us to perform an inference based on the classical regression model for the predict forward of the future values of $\beta_{LogN}(t)$ with a direct transformation.
+
+```{r log normal formula}
+# define direct transf function
+M_from_Norm<-function(mu,sigma) exp(mu+0.5*sigma^2)
+SD_from_Norm<-function(mu,sigma)  sqrt(exp(2*mu+sigma^2)*(exp(sigma^2)-1))
+# define inverse transf function
+M_from_LNorm<-function(mu,sigma) 2*log(mu)-0.5*log(mu^2+sigma^2)
+SD_from_LNorm<-function(mu,sigma) sqrt( -2*log(mu)+log(mu^2+sigma^2))
+```
+
 ```{r R0 forecast}
 #start from the day 7, since vo hotspot can influence the trend
 time<-3:(days-2)
 weekend<-rep(c(1,2,3,4,5,6,7),ceiling(days/7))[3:(days-2)]
 data<-data.frame(time)
-beta.model<-glm(beta_vec~time,weights = 1/sd_vec,family=gaussian,data)
+beta_norm<-M_from_LNorm(beta1+1/duration,sd_beta1)
+sd_beta_norm<-SD_from_LNorm(beta1+1/duration,sd_beta1)
+sd_norm_mean<-sqrt(mean(SD_from_LNorm(beta1,sd_beta1)^2))
+
+beta.model<-glm(beta_norm~time,weights = 1/(sd_beta_norm)^2,family=gaussian,data)
 summary(beta.model)
 anova(beta.model,test="Chisq")
 #there is an effect of the week, as supposed 
 #we can use
-#summary(gamlss(formula = beta_vec ~ time + bs(weekend, 3),      weights = 1/sd_vec,Lp=1) )
+#summary(gamlss(formula = beta_norm ~ time + bs(weekend, 3),Lp=1) )
 forecast=14
 # add 'fit', 'lwr', and 'upr' columns to dataframe (generated by predict)
 pre<-predict(beta.model,type='response',newdata=data.frame(time=1:(days+forecast)),se.fit=TRUE)
 date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast-1+dim(dat_csv)[1],1)
-predict <- data.frame(beta_vec=c(rep(NA,2),beta_vec,rep(NA,forecast+2)),time=date,fit=pre$fit,lwr=pre$fit-1*1.96*pre$se.fit,upr=pre$fit+1*1.96*pre$se.fit)
+predict <- data.frame(beta=c(rep(NA,2),beta_norm,rep(NA,forecast+2)),time=date,fit=pre$fit,lwr=pre$fit-1*1.96*pre$se.fit,upr=pre$fit+1*1.96*pre$se.fit)
 beta.predict<-predict 
 r0.predict<-beta.predict
-r0.predict[,c(1,3:5)]<-r0.predict[,c(1,3:5)]*duration+1
+r0.predict[,c(1,3:5)]<-M_from_Norm(r0.predict[,c(1,3:5)],sd_norm_mean)*duration
 # plot the points (actual observations), regression line, and confidence interval
-p <- ggplot(r0.predict, aes(date,beta_vec))
+p <- ggplot(r0.predict, aes(date,beta))
 p <- p + geom_point() +labs(x="Date",y="R0 value") 
 p <- p + geom_line(aes(date,fit))
 p <- p + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.3)
@@ -295,7 +320,7 @@ and parameters:
 
 ```{r ini parameters plot, echo=TRUE}
 # initial number of infectus
-I_start<-dat_csv$totale_attualmente_positivi[dim(dat_csv)[1]]; I_start
+I_start<-dat_csv$totale_positivi[dim(dat_csv)[1]]; I_start
 # initial number of recovered, based on the proportion of discharged from the health services
 prop<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]/dat_csv$totale_ospedalizzati[dim(dat_csv)[1]]
 R_start<-prop*dat_csv$totale_casi[dim(dat_csv)[1]]; R_start
@@ -325,7 +350,7 @@ The parameter $\sigma$ is our parameter of interest; we estimate $\sigma$ fixing
 # number of the last considered days for calibration
 last<-10
 #I_start
-I_1<-dat_csv$totale_attualmente_positivi[(days-last)]
+I_1<-dat_csv$totale_positivi[(days-last)]
 #R_start
 R_1<-prop*dat_csv$totale_casi[(days-last)]
 #loglikelihood function
@@ -348,9 +373,9 @@ f1<-function(par){
 #max 0.20 according to https://www.nejm.org/doi/10.1056/NEJMoa2001316 is 1/5.2
 sigma<-expit(par)
 f_exp<-3*I_1/N
-parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[(days-last-2)])+1/duration), sigma = sigma, gamma =1/duration)
+parameters <- c(mu = mu0, beta =(as.numeric(beta1[(days-last-2)])+1/duration), sigma = sigma, gamma =1/duration)
 initials <- c(S = (1-(f_exp+I_1/N+R_start/N)), E = f_exp, I = I_1/N, R = R_1/N)
--LogLikfun(initials,parameters,dat_csv$totale_attualmente_positivi[c((days-last):days)])
+-LogLikfun(initials,parameters,dat_csv$totale_positivi[c((days-last):days)])
 }
 est<-optim(fn=f1,par=logit(0.1))
 est
@@ -359,11 +384,11 @@ expit(est$par)
 f_exp<-3*I_1/N
 sigma<-expit(est$par)
 
-parameters <- c(mu = mu0, beta =(as.numeric(beta_vec[(days-last-2)])+1/duration), sigma = sigma, gamma = 1/duration)
+parameters <- c(mu = mu0, beta =(as.numeric(beta1[(days-last-2)])+1/duration), sigma = sigma, gamma = 1/duration)
 initials <- c(S = (1-(f_exp+I_1/N+R_1/N)), E = f_exp, I = I_1/N, R = R_1/N)
 pro<-SEIR(pars = parameters, init = initials, time = 0:last)
 #predicted vs observed
-cbind(pro$results$I*N,dat_csv$totale_attualmente_positivi[c((days-last):days)])
+cbind(pro$results$I*N,dat_csv$totale_positivi[c((days-last):days)])
 ```
 
 The values of initial parameters are
@@ -393,26 +418,27 @@ We made a forecast forward of 14 days dropping the first 100 simulation as burn-
 
 ```{r bsts model fit and prediction, echo=TRUE}
 # Bayesian Structural Time Series
-#we drop the first 6 beta_vec
-ss <- AddStudentLocalLinearTrend(list(), beta_vec[6:(days-4)])
-ss <- AddSeasonal(ss, beta_vec[6:(days-4)], nseasons = 7)
-model1 <- bsts(beta_vec[6:(days-4)],
+#we assume beta ~ LN (mu_b,sigma_b)
+
+#we drop the first 6 beta_norm
+ss <- AddStudentLocalLinearTrend(list(), beta_norm[6:(days-4)])
+ss <- AddSeasonal(ss, beta_norm[6:(days-4)], nseasons = 7)
+model1 <- bsts(beta_norm[6:(days-4)],
                state.specification = ss,
                niter = 1000,seed=123)
 par(mfrow = c(1,1))
 plot(model1, "components")
 #previsioni
 pred1 <- predict(model1, horizon = 16, burn = 100)
-par(mfrow = c(1,1))
-plot(pred1 , ylab="Beta1 coefficient",main="Data and predictions",ylim=c(-1,1)*IQR(pred1$distribution)+median(pred1$distribution))
+plot(pred1 , ylab="Log Beta1 coefficient",main="Data and predictions",ylim=c(-3,3)*IQR(pred1$distribution)+median(pred1$distribution))
 # matrix of beta coefficients
-coef<-(pred1$distribution[,3:16])
+coef<-M_from_Norm(pred1$distribution[,3:16],sd_norm_mean)
 par(mfrow = c(1,1))
 ```
 
 
 For each vector of simulated beta coefficients we perform a SEIR model.
-We save the results and plot a credible interval at 50% (25-75% percentile).
+We save the results and plot a credible interval at 90% (5-95% percentile).
 
 ```{r  scenario plot , echo=TRUE}
 seir1_sim<-NULL
@@ -423,7 +449,7 @@ for(s in 1:dim(coef)[1]){
   forecast<-14
   seir1<-NULL
   for(i in 1:forecast){
-    parameters <- c(mu = mu0, beta = (matrix(coef[s,i])+1/duration), sigma = sigma, gamma = 1/duration)
+    parameters <- c(mu = mu0, beta = matrix(coef[s,i]), sigma = sigma, gamma = 1/duration)
     if( i==1) initials <- c(S = 1-(pro$results$E[last+1]+I_start/N+R_start/N), E = pro$results$E[last+1], I = I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
     seir1_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
@@ -437,18 +463,18 @@ colnames(seir1_sim)[1]<-"sim"
 
 ### confidence limits
 I_seir_med<-tapply(seir1_sim$I,seir1_sim$time,median)
-I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.25)
-I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.75)
+I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.05)
+I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.95)
 
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
 step.ahead<-forecast+1
-mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
-mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
-mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
+mu.lower<-c(dat_csv$totale_positivi,I_seir_lwr*N)
+mu.upper<-c(dat_csv$totale_positivi,I_seir_upr*N)
+mu.med<-xts(c(dat_csv$totale_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Veneto Region: Scenario 1 (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Veneto Region: Scenario 1 (Credible Interval ",100*0.90,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
@@ -477,8 +503,9 @@ We estimate a second scenario using a Random Walk on the basis of the last value
 ```{r  scenario2 sim and plot , echo=TRUE}
 ss<-NULL
 set.seed(123)
-ss <-   AddLocalLevel(list(), beta_vec[(days-9):(days-4)],sigma=SdPrior(sd_vec[(days-4)]))
-model1 <- bsts(beta_vec[(days-9):(days-4)],
+#we assum log_beta ~ N()
+ss <-   AddLocalLevel(, beta_norm[(days-9):(days-4)],sdy=sd_norm_mean)
+model1 <- bsts(beta_norm[(days-9):(days-4)],
                state.specification = ss,
                niter = 1000,seed=123)
 par(mfrow = c(1,1))
@@ -488,7 +515,7 @@ pred1 <- predict(model1, horizon = 16, burn = 100)
 par(mfrow = c(1,1))
 plot(pred1 , ylab="Beta1 coefficient",main="Data and predictions",ylim=c(-1,1)*IQR(pred1$distribution)+median(pred1$distribution))
 # matrix of beta coefficients
-coef<-(pred1$distribution[,3:16])
+coef<-M_from_Norm(pred1$distribution[,3:16],sd_norm_mean)
 par(mfrow = c(1,1))
 
 seir2_sim<-NULL
@@ -519,9 +546,9 @@ I_seir_upr<-tapply(seir2_sim$I,seir2_sim$time,quantile,p=0.95)
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
 step.ahead<-forecast+1
-mu.lower<-c(dat_csv$totale_attualmente_positivi,I_seir_lwr*N)
-mu.upper<-c(dat_csv$totale_attualmente_positivi,I_seir_upr*N)
-mu.med<-xts(c(dat_csv$totale_attualmente_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
+mu.lower<-c(dat_csv$totale_positivi,I_seir_lwr*N)
+mu.upper<-c(dat_csv$totale_positivi,I_seir_upr*N)
+mu.med<-xts(c(dat_csv$totale_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
 p <- dygraph(mu,main=paste("Veneto Region: Scenario 2 (Credible Interval ",100*0.90,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
@@ -555,7 +582,7 @@ We report the number of intensive care patients on the basis of the estimated CO
 
 
 ```{r  intensive care numbers, echo=TRUE}
-fit_int_care<-glm(cbind(terapia_intensiva,totale_attualmente_positivi-terapia_intensiva)~t,family=binomial,data=dat_csv)
+fit_int_care<-glm(cbind(terapia_intensiva,totale_positivi-terapia_intensiva)~t,family=binomial,data=dat_csv)
 
 
 
@@ -564,8 +591,8 @@ forecast=14
 # add 'fit', 'lwr', and 'upr' columns to dataframe (generated by predict)
 pre<-predict(fit_int_care,type='response',newdata=data.frame(t=1:(days+forecast)),se.fit=TRUE)
 date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast-1+dim(dat_csv)[1],1)
-plot(date,pre$fit,type="l",main="Proportion of admitted COVID 19 in intensive care",ylim=range(dat_csv$terapia_intensiva/dat_csv$totale_attualmente_positivi))
-points(date[1:days],dat_csv$terapia_intensiva/dat_csv$totale_attualmente_positivi)
+plot(date,pre$fit,type="l",main="Proportion of admitted COVID 19 in intensive care",ylim=range(dat_csv$terapia_intensiva/dat_csv$totale_positivi))
+points(date[1:days],dat_csv$terapia_intensiva/dat_csv$totale_positivi)
 lines(date,pre$fit+1.96*pre$se.fit,col=3,lty=2)
 lines(date,pre$fit-1.96*pre$se.fit,col=3,lty=2)
 legend("topright",c("fitted","95% Confidence Interval"),lty=1:2,col=c(1,3))
