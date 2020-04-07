@@ -2,7 +2,7 @@ COVID19 - Forecast and predictions using a time dependent SEIR model -
 Italy
 ================
 Paolo Girardi
-02 Aprile, 2020
+07 Aprile, 2020
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
 work is licensed under a
@@ -133,12 +133,12 @@ dat_csv$t<-1:days
 days
 ```
 
-    ## [1] 38
+    ## [1] 44
 
 Several outcomes can be potentially monitored, that is
 
 ``` r
-names(dat_csv[,-c(1:2,17:19)])
+names(dat_csv[,-c(1:2,14:16)])
 ```
 
     ##  [1] "ricoverati_con_sintomi"     "terapia_intensiva"         
@@ -146,8 +146,7 @@ names(dat_csv[,-c(1:2,17:19)])
     ##  [5] "totale_positivi"            "variazione_totale_positivi"
     ##  [7] "nuovi_positivi"             "dimessi_guariti"           
     ##  [9] "deceduti"                   "totale_casi"               
-    ## [11] "tamponi"                    "note_it"                   
-    ## [13] "note_en"                    "t"
+    ## [11] "tamponi"
 
 It is worth noting that some outcomes present negative counts in some
 regions. It looks like some of these negative counts are redesignations.
@@ -161,7 +160,7 @@ timeseries.
 myDateTimeStr1 <- paste(substr(dat_csv$data,1,10),substr(dat_csv$data,12,19))
 myPOSIXct1 <- as.POSIXct(myDateTimeStr1, format="%Y-%m-%d %H:%M:%S")
 days_dy<-as.Date(myPOSIXct1)
-dat_csv_dy<-xts(dat_csv[,-c(1:2,13:15)], order.by = days_dy, frequency = 7)
+dat_csv_dy<-xts(dat_csv[,-c(1:2,14:16)], order.by = days_dy, frequency = 7)
 ```
 
 ``` r
@@ -170,12 +169,19 @@ p
 ```
 
 ![](draft_analysis_Italy_new_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+The time series of COVID-19 in the
+Italy.
 
-### The S(E)IR model (to be revised)
+``` r
+plot(days_dy[-1],diff(dat_csv$totale_casi), ylab="New cases",xlab="Date",type="l")
+```
+
+![](draft_analysis_Italy_new_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+\#\#\# The S(E)IR model (to be revised)
 
 With the aim of predicting the future number of COVID19 cases on the
 basis of the actual data, we used a SEIR model applied to the COVID19
-epidemic to Italy
+epidemic to the Italy.
 
 We will consider the classical [SIR
 model](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology)
@@ -224,7 +230,7 @@ p <- dygraph(dat_csv_dy$log_totale_positivi,main=paste("Italy"),ylab="Log Infect
 p
 ```
 
-![](draft_analysis_Italy_new_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](draft_analysis_Italy_new_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 We estimate the \(R_0\) parameter in the linear model.
 
@@ -241,7 +247,7 @@ The estimated slope coefficient \(\hat\beta_1\) is used to estimate
 consequence, R0 can be estimated as follows \[
 \hat{R_0}=1+\frac{\hat{\beta_1}}{\gamma}
 \] Respect to the SIR model, \(R_0\) can be estimated as follows: \[
-\hat{R_0}=\frac{\hat{\beta}}{\gamma}
+\hat{R_0}=\frac{\beta}{\gamma}
 \] And this was we can retrive the value of \(\beta\) in the SEIR model
 by means of \[
 \hat{R_0}=\frac{\hat{\beta}}{\gamma}=1+\frac{\hat{\beta_1}}{\gamma}\\
@@ -256,7 +262,8 @@ the immediate home isolation of infected subjects. The duration of the
 diseases is about 2 weeks.
 
 However, in the calculation of R0 we considered an infectious period of
-18 days (<https://www.nejm.org/doi/10.1056/NEJMoa2001316>).
+18 days on the basis of recent publications
+(<https://www.nature.com/articles/s41421-020-0148-0>).
 
 We calculate several R0 values, each one based on a mobile window of 5
 days, that can be sufficient to estimate a local trend, in order to
@@ -268,21 +275,21 @@ impossibile to estimate.
 #calculate r0 based with a mobile window of 5 days
 #vector for beta and standard deviation
 duration<-18
-beta_vec<-NULL
-sd_vec<-NULL
+beta1<-NULL
+sd_beta1<-NULL
 #for cycle for R0 estimates from days-2 to days+2
 for (i in 3:(days-2)){
 fit <- lm(log(totale_positivi)~t,data=dat_csv[(i-2):(i+2),])
-beta_vec<-c(beta_vec,coef(fit)[2])
-sd_vec<-c(sd_vec,coef(summary(fit))[2,2])
+beta1<-c(beta1,coef(fit)[2])
+sd_beta1<-c(sd_beta1,coef(summary(fit))[2,2])
 }
 
 label<-as.Date(substr(dat_csv$data,1,10))[3:(days-2)]
 
 
-mean  <- 1+(beta_vec*duration)
-lower <- 1+((beta_vec-1.96*sd_vec)*duration)
-upper <- 1+((beta_vec+1.96*sd_vec)*duration)
+mean  <- 1+(beta1*duration)
+lower <- 1+((beta1-1.96*sd_beta1)*duration)
+upper <- 1+((beta1+1.96*sd_beta1)*duration)
 
 df <- data.frame(label, mean, lower, upper)
 
@@ -300,40 +307,70 @@ print(fp)
 The R0 shows a decreasing trend in the last period. We use the estimated
 trend between R0 and time to calculate the future R0 value for the next
 14 days. We predict beta (and R0) for the next 14 days by means of a
-linear regressione model, assuming a Normal distribution for the beta
-(the slope).
+linear regressione model, assuming a Log-Normal distribution for the the
+\(\beta1\) and as consequence for the \(\beta\) for the regression,
+rescaled of \(1/\gamma\). We implement function to deal with log-normal
+distribution, in order to recover the parameter \(\mu\) and \(\sigma\)
+belonging normal distribution starting from this one:
+\[\beta_{LogN}(t) \sim Log N (\beta_1(t)+\frac{1}{\gamma}, \sigma_{\beta_1(t)}^2)\]
+In order to deal with estimations of \(\hat\beta_1(t)\) that we have
+estimated before, we adopted an inverse transformation as reported here
+<https://ocw.mit.edu/courses/civil-and-environmental-engineering/1-151-probability-and-statistics-in-engineering-spring-2005/lecture-notes/briefnts8_relnl.pdf>.
+The following formulas provide us the mean and variance of the normal
+distribution
+
+\[\beta_{N}(t) \sim N (\mu_{\beta_N},\sigma_{\beta_N}^2)\] derived from
+the log-normal distribution \(\beta_{LogN}(t)\).
+\[\mu_{\beta_N} =e^{\mu_{\beta_{LogN}}+0.5*\sigma_{\beta_{LogN}}^2}\]
+
+\[\sigma_{\beta_N}^2 =-2\log(\mu_{\beta_{LogN}})+\log(\mu_{\beta_{LogN}}^2+\sigma_{\beta_{LogN}}^2)\]
+This transformation permits us to perform an inference based on the
+classical regression model for the predict forward of the future values
+of \(\beta_{LogN}(t)\) with a direct transformation.
 
 ``` r
+# define direct transf function
+M_from_Norm<-function(mu,sigma) exp(mu+0.5*sigma^2)
+SD_from_Norm<-function(mu,sigma)  sqrt(exp(2*mu+sigma^2)*(exp(sigma^2)-1))
+# define inverse transf function
+M_from_LNorm<-function(mu,sigma) 2*log(mu)-0.5*log(mu^2+sigma^2)
+SD_from_LNorm<-function(mu,sigma) sqrt( -2*log(mu)+log(mu^2+sigma^2))
+```
+
+``` r
+#start from the day 7, since vo hotspot can influence the trend
 time<-3:(days-2)
 weekend<-rep(c(1,2,3,4,5,6,7),ceiling(days/7))[3:(days-2)]
-data=data.frame(time,weekend)
-beta.model<-glm(beta_vec~time+I(cos(time*2*pi/7))+I(sin(time*2*pi/7)),weights = 1/sd_vec,family=gaussian,data=data)
+data<-data.frame(time)
+beta_norm<-M_from_LNorm(beta1+1/duration,sd_beta1)
+sd_beta_norm<-SD_from_LNorm(beta1+1/duration,sd_beta1)
+sd_norm_mean<-sqrt(mean(SD_from_LNorm(beta1,sd_beta1)^2))
+
+beta.model<-glm(beta_norm~time,weights = 1/(sd_beta_norm)^2,family=gaussian,data)
 summary(beta.model)
 ```
 
     ## 
     ## Call:
-    ## glm(formula = beta_vec ~ time + I(cos(time * 2 * pi/7)) + I(sin(time * 
-    ##     2 * pi/7)), family = gaussian, data = data, weights = 1/sd_vec)
+    ## glm(formula = beta_norm ~ time, family = gaussian, data = data, 
+    ##     weights = 1/(sd_beta_norm)^2)
     ## 
     ## Deviance Residuals: 
-    ##      Min        1Q    Median        3Q       Max  
-    ## -0.47047  -0.06727   0.00761   0.10637   0.53475  
+    ##     Min       1Q   Median       3Q      Max  
+    ## -9.5581  -0.7714   0.9350   2.3860   7.2335  
     ## 
     ## Coefficients:
-    ##                           Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)              0.2936526  0.0077905  37.694  < 2e-16 ***
-    ## time                    -0.0071880  0.0002928 -24.547  < 2e-16 ***
-    ## I(cos(time * 2 * pi/7)) -0.0008389  0.0036725  -0.228 0.820868    
-    ## I(sin(time * 2 * pi/7)) -0.0133727  0.0036126  -3.702 0.000861 ***
+    ##              Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept) -0.879221   0.036918  -23.82   <2e-16 ***
+    ## time        -0.039475   0.001143  -34.55   <2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## (Dispersion parameter for gaussian family taken to be 0.04564617)
+    ## (Dispersion parameter for gaussian family taken to be 14.29185)
     ## 
-    ##     Null deviance: 30.7294  on 33  degrees of freedom
-    ## Residual deviance:  1.3694  on 30  degrees of freedom
-    ## AIC: -173.8
+    ##     Null deviance: 17600.06  on 39  degrees of freedom
+    ## Residual deviance:   543.09  on 38  degrees of freedom
+    ## AIC: -59.593
     ## 
     ## Number of Fisher Scoring iterations: 2
 
@@ -345,33 +382,31 @@ anova(beta.model,test="Chisq")
     ## 
     ## Model: gaussian, link: identity
     ## 
-    ## Response: beta_vec
+    ## Response: beta_norm
     ## 
     ## Terms added sequentially (first to last)
     ## 
     ## 
-    ##                         Df Deviance Resid. Df Resid. Dev  Pr(>Chi)    
-    ## NULL                                       33    30.7294              
-    ## time                     1  28.7333        32     1.9961 < 2.2e-16 ***
-    ## I(cos(time * 2 * pi/7))  1   0.0013        31     1.9949 0.8678717    
-    ## I(sin(time * 2 * pi/7))  1   0.6255        30     1.3694 0.0002142 ***
+    ##      Df Deviance Resid. Df Resid. Dev  Pr(>Chi)    
+    ## NULL                    39    17600.1              
+    ## time  1    17057        38      543.1 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
 ``` r
 #there is an effect of the week, as supposed 
+#we can use
+#summary(gamlss(formula = beta_norm ~ time + bs(weekend, 3),Lp=1) )
 forecast=14
 # add 'fit', 'lwr', and 'upr' columns to dataframe (generated by predict)
-weekend_pre<-rep(c(1,2,3,4,5,6,7),ceiling((days+forecast)/7))[1:(days+forecast)]
-datanew<-data.frame(time=1:(days+forecast),weekend=weekend_pre)
-pre<-predict(beta.model,type='response',newdata=datanew,se.fit=TRUE)
+pre<-predict(beta.model,type='response',newdata=data.frame(time=1:(days+forecast)),se.fit=TRUE)
 date<-seq(as.Date("2020-02-24"),as.Date("2020-02-24")+forecast-1+dim(dat_csv)[1],1)
-predict <- data.frame(beta_vec=c(rep(NA,2),beta_vec,rep(NA,forecast+2)),time=date,fit=pre$fit,lwr=pre$fit-1*1.96*pre$se.fit,upr=pre$fit+1*1.96*pre$se.fit)
+predict <- data.frame(beta=c(rep(NA,2),beta_norm,rep(NA,forecast+2)),time=date,fit=pre$fit,lwr=pre$fit-1*1.96*pre$se.fit,upr=pre$fit+1*1.96*pre$se.fit)
 beta.predict<-predict 
 r0.predict<-beta.predict
-r0.predict[,c(1,3:5)]<-r0.predict[,c(1,3:5)]*duration+1
+r0.predict[,c(1,3:5)]<-M_from_Norm(r0.predict[,c(1,3:5)],sd_norm_mean)*duration
 # plot the points (actual observations), regression line, and confidence interval
-p <- ggplot(r0.predict, aes(date,beta_vec))
+p <- ggplot(r0.predict, aes(date,beta))
 p <- p + geom_point() +labs(x="Date",y="R0 value") 
 p <- p + geom_line(aes(date,fit))
 p <- p + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.3)
@@ -383,7 +418,7 @@ p
 ![](draft_analysis_Italy_new_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
 R0 passes from a value of NA in the initial phase to an estimated value
-of -0.53 at the ending of the 14-days forecast.  
+of 0.76 at the ending of the 14-days forecast.  
 We use the library(EpiDynamics) and the function SEIR() to implement a
 SEIR model:
 
@@ -405,24 +440,24 @@ We want to make a short term forecast (14 days).
 
 We made a forecast by means of a SEIR model fixing a series of initial
 status:  
-*S:N, the size of Italian population  
+*S:N, the size of the Italian population  
 *E: The number of exposed people, but supposed to be at least 3 times
 the infected (3 x I\_start)  
 *I\_start: initial number of COVID-19 cases  
 *R\_start: initial number of recovered
 
 and parameters:  
-\- beta: gamma + slope  
-\- gamma= 1/duration of diseases (duration=21 days)  
-\- sigma: the coronavirus transmission rate  
-\- mu0: the overall mortality rate
+\-beta: gamma + slope  
+\-gamma= 1/duration of diseases (duration=21 days)  
+\-sigma: the coronavirus transmission rate  
+\-mu0: the overall mortality rate
 
 ``` r
 # initial number of infectus
 I_start<-dat_csv$totale_positivi[dim(dat_csv)[1]]; I_start
 ```
 
-    ## [1] 80572
+    ## [1] 94067
 
 ``` r
 # initial number of recovered, based on the proportion of discharged from the health services
@@ -430,12 +465,12 @@ prop<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]/dat_csv$totale_ospedalizzati[dim(
 R_start<-prop*dat_csv$totale_casi[dim(dat_csv)[1]]; R_start
 ```
 
-    ## [1] 57427.71
+    ## [1] 101729.1
 
 ``` r
-# Italian population
-N=60480000
-# duration of COVID19 as the sum of incubation (5-14 days) and the duration of diseases (about 18 days)
+# Italy
+N=60317000
+#  duration of COVID19 diseases 
 duration<-18
 #mortality rate 
 mu0<-1/(82*365.25) # 1/lifespan
@@ -445,7 +480,25 @@ We try to estimates sigma (from exposed to infected) and the number of
 exposed population on the basis of the last 5 days of observed number of
 total infected people.
 
-s
+We suppose that the number of total infected \(I(t)\) can be the
+realization of a Poisson random variable \[
+I(t) \sim Poisson (\theta_t)
+\] where \(\theta_t\) is the unknown mean of the random process at the
+time \(t\).
+
+The Poisson distribution has a fixed variance that is equal to the mean;
+in the next part we try to estimates the parameters considering a
+Negative Binomial distribution which allows for overdispersion.
+
+However, the parameter \(\theta_t\) can be supposed to be a realization
+of a SEIR model with initial parameters
+\(\theta=(\mu,\beta,\sigma, \gamma)\) and initial status
+\(S=(S_{start},E_{start},I_{start},R_{start})\).
+
+The parameter \(\sigma\) is our parameter of interest; we estimate
+\(\sigma\) fixing \(E_{start}= 3*I_{start}\) minimizing the log
+likelihood of the described Poisson distribution (or Negative Binomial
+one).
 
 ``` r
 # number of the last considered days for calibration
@@ -457,12 +510,12 @@ R_1<-prop*dat_csv$totale_casi[(days-last)]
 #loglikelihood function
 LogLikfun <- function (initials,parameters,obs) {
 n<-length(obs)
-N=60480000
+N=60317000
 seir_fit <- SEIR(pars = parameters, init = initials, time = 0:last)
 #Poisson
-#sum(dpois(x=obs[-1],lambda = seir_fit$results$I[-1]*N,log=TRUE))
+sum(dpois(x=obs[-1],lambda = seir_fit$results$I[-1]*N,log=TRUE))
 #Neg Binomial
-sum(dnbinom(x=obs[-1],mu=seir_fit$results$I[-1]*N,size=N,log=TRUE))
+#sum(dnbinom(x=obs[-1],mu=seir_fit$results$I[-1]*N,size=N,log=TRUE))
 #SSE
 #-sum((obs[-1]-seir_fit$results$I[-1]*N)^2)
 }
@@ -471,10 +524,11 @@ logit <- function (p) log(p/(1-p))    # the logit transform
 expit <- function (x) 1/(1+exp(-x))   # inverse logit
 
 f1<-function(par){
+#max 0.20 according to https://www.nejm.org/doi/10.1056/NEJMoa2001316 is 1/5.2
 sigma<-expit(par)
 f_exp<-3*I_1/N
-parameters <- c(mu = mu0, beta =(mean(beta_vec[1:(days-last-2)])+1/duration), sigma = sigma, gamma =1/duration)
-initials <- c(S = (1-(f_exp+I_1/N-R_start/N)), E = f_exp, I = I_1/N, R = R_1/N)
+parameters <- c(mu = mu0, beta =(as.numeric(beta1[(days-last-2)])+1/duration), sigma = sigma, gamma =1/duration)
+initials <- c(S = (1-(f_exp+I_1/N+R_start/N)), E = f_exp, I = I_1/N, R = R_1/N)
 -LogLikfun(initials,parameters,dat_csv$totale_positivi[c((days-last):days)])
 }
 est<-optim(fn=f1,par=logit(0.1))
@@ -484,34 +538,54 @@ est<-optim(fn=f1,par=logit(0.1))
     ## use "Brent" or optimize() directly
 
 ``` r
-#estimated par
+est
+```
+
+    ## $par
+    ## [1] -3.387889
+    ## 
+    ## $value
+    ## [1] 87.07227
+    ## 
+    ## $counts
+    ## function gradient 
+    ##       30       NA 
+    ## 
+    ## $convergence
+    ## [1] 0
+    ## 
+    ## $message
+    ## NULL
+
+``` r
 expit(est$par)
 ```
 
-    ## [1] 0.04176733
+    ## [1] 0.03267613
 
 ``` r
-sigma<-expit(est$par)
 f_exp<-3*I_1/N
-parameters <- c(mu = mu0, beta =(mean(beta_vec[1:(days-last-2)])+1/duration), sigma = sigma, gamma = 1/duration)
-initials <- c(S = (1-(f_exp+I_1/N-R_1/N)), E = f_exp, I = I_1/N, R = R_1/N)
+sigma<-expit(est$par)
+
+parameters <- c(mu = mu0, beta =(as.numeric(beta1[(days-last-2)])+1/duration), sigma = sigma, gamma = 1/duration)
+initials <- c(S = (1-(f_exp+I_1/N+R_1/N)), E = f_exp, I = I_1/N, R = R_1/N)
 pro<-SEIR(pars = parameters, init = initials, time = 0:last)
 #predicted vs observed
 cbind(pro$results$I*N,dat_csv$totale_positivi[c((days-last):days)])
 ```
 
     ##           [,1]  [,2]
-    ##  [1,] 46638.00 46638
-    ##  [2,] 49919.60 50418
-    ##  [3,] 53271.45 54030
-    ##  [4,] 56712.13 57521
-    ##  [5,] 60259.17 62013
-    ##  [6,] 63929.20 66414
-    ##  [7,] 67738.22 70065
-    ##  [8,] 71701.73 73880
-    ##  [9,] 75834.94 75528
-    ## [10,] 80152.88 77635
-    ## [11,] 84668.66 80572
+    ##  [1,] 70065.00 70065
+    ##  [2,] 72968.03 73880
+    ##  [3,] 75738.23 75528
+    ##  [4,] 78391.10 77635
+    ##  [5,] 80939.00 80572
+    ##  [6,] 83397.10 83049
+    ##  [7,] 85776.10 85388
+    ##  [8,] 88086.31 88274
+    ##  [9,] 90337.06 91246
+    ## [10,] 92536.80 93187
+    ## [11,] 94693.18 94067
 
 The values of initial parameters are
 
@@ -527,7 +601,7 @@ mu0;
 sigma
 ```
 
-    ## [1] 0.04176733
+    ## [1] 0.03267613
 
 ``` r
 #gamma
@@ -537,50 +611,56 @@ sigma
     ## [1] 0.05555556
 
 ``` r
-#the unknowrn fraction of exposed people is
-pro$results$E[last+1];
+#mthe unknowrn fraction of exposed people is
+pro$results$E[last+1]
 ```
 
-    ## [1] 0.003692631
+    ## [1] 0.003755084
 
 ``` r
 #that is 
 pro$results$E[last+1]/pro$results$I[last+1]
 ```
 
-    ## [1] 2.637697
+    ## [1] 2.391887
 
 ``` r
 #times the infected
 ```
 
-For the beta parameter, we perfom a simulation on its trend by means of
-a Bayesian Structural Time Series using the library bsts of R.  
-We estimate a BSTS model specifing a local linear trend ans 1000
-simulation.
+# Forecast 1 - Results based on beta coefficient trend
+
+For the beta parameter, we perfomed a simulation on its trend by means
+of a Bayesian Structural Time Series using the library bsts of R.  
+We estimated a BSTS model specifing a local linear trend and a
+seasonality component. The model predicted 1000 trajectories forward of
+the beta coefficent.
 
 We made a forecast forward of 14 days dropping the first 100 simulation
 as burn-in.
 
 ``` r
 # Bayesian Structural Time Series
-ss <- AddLocalLinearTrend(list(), beta_vec)
-ss <- AddSeasonal(ss, beta_vec, nseasons = 7)
-model1 <- bsts(beta_vec,
+#we assume beta ~ LN (mu_b,sigma_b)
+
+#we drop the first 6 beta_norm
+ss <- AddStudentLocalLinearTrend(list(), beta_norm[6:(days-4)])
+#ss <- AddSeasonal(ss, beta_norm[6:(days-4)], nseasons = 7)
+model1 <- bsts(beta_norm[6:(days-4)],
                state.specification = ss,
                niter = 1000,seed=123)
 ```
 
-    ## =-=-=-=-= Iteration 0 Thu Apr  2 12:42:57 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Thu Apr  2 12:42:57 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Thu Apr  2 12:42:57 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Thu Apr  2 12:42:57 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Thu Apr  2 12:42:57 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Thu Apr  2 12:42:57 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Thu Apr  2 12:42:57 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Thu Apr  2 12:42:58 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Thu Apr  2 12:42:58 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Thu Apr  2 12:42:58 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Tue Apr  7 22:18:03 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Tue Apr  7 22:18:03 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Tue Apr  7 22:18:03 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Tue Apr  7 22:18:03 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Tue Apr  7 22:18:04 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Tue Apr  7 22:18:04 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Tue Apr  7 22:18:04 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Tue Apr  7 22:18:04 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Tue Apr  7 22:18:05 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Tue Apr  7 22:18:05 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
@@ -592,20 +672,19 @@ plot(model1, "components")
 ``` r
 #previsioni
 pred1 <- predict(model1, horizon = 16, burn = 100)
-par(mfrow = c(1,1))
-plot(pred1 , ylab="Beta1 coefficient",main="Data and predictions",ylim=c(-1,1)*IQR(pred1$distribution)+median(pred1$distribution))
+plot(pred1 , ylab="Log Beta1 coefficient",main="Data and predictions",ylim=c(-3,3)*IQR(pred1$distribution)+median(pred1$distribution))
 ```
 
 ![](draft_analysis_Italy_new_files/figure-gfm/bsts%20model%20fit%20and%20prediction-2.png)<!-- -->
 
 ``` r
 # matrix of beta coefficients
-coef<-(pred1$distribution[,3:16])
+coef<-M_from_Norm(pred1$distribution[,3:16],sd_norm_mean)
 par(mfrow = c(1,1))
 ```
 
 For each vector of simulated beta coefficients we perform a SEIR model.
-We save the results and plot a credible interval at 50% (25-75%
+We save the results and plot a credible interval at 90% (5-95%
 percentile).
 
 ``` r
@@ -617,8 +696,8 @@ for(s in 1:dim(coef)[1]){
   forecast<-14
   seir1<-NULL
   for(i in 1:forecast){
-    parameters <- c(mu = mu0, beta = (matrix(coef[s,i])+1/duration), sigma = sigma, gamma = 1/duration)
-    if( i==1) initials <- c(S = 1-(pro$results$E[last+1]+I_start/N+R_start/N), E =pro$results$E[last+1] , I = I_start/N, R = R_start/N)
+    parameters <- c(mu = mu0, beta = matrix(coef[s,i]), sigma = sigma, gamma = 1/duration)
+    if( i==1) initials <- c(S = 1-(pro$results$E[last+1]+I_start/N+R_start/N), E = pro$results$E[last+1], I = I_start/N, R = R_start/N)
     if( i>1) initials <- c(S = seir1_temp$results$S[2], E = seir1_temp$results$E[2], I =seir1_temp$results$I[2], R = seir1_temp$results$R[2])
     seir1_temp <- SEIR(pars = parameters, init = initials, time = 0:1)
     seir1 <- rbind(seir1,SEIR(pars = parameters, init = initials, time = 0:1)$results[2,])
@@ -631,8 +710,8 @@ colnames(seir1_sim)[1]<-"sim"
 
 ### confidence limits
 I_seir_med<-tapply(seir1_sim$I,seir1_sim$time,median)
-I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.25)
-I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.75)
+I_seir_lwr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.05)
+I_seir_upr<-tapply(seir1_sim$I,seir1_sim$time,quantile,p=0.95)
 
 days.before<-date[1:days]
 days.ahead<-date[(days+1):(days+forecast)]
@@ -642,17 +721,17 @@ mu.upper<-c(dat_csv$totale_positivi,I_seir_upr*N)
 mu.med<-xts(c(dat_csv$totale_positivi,I_seir_med*N),order.by = c(days.before,days.ahead),frequency = 7)
 counts<-mu.med
 mu<-xts(x = as.matrix(cbind(counts,mu.lower,mu.upper)) , order.by = c(days.before,days.ahead))
-p <- dygraph(mu,main=paste("Italy: Scenario  (Credible Interval ",100*0.50,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
+p <- dygraph(mu,main=paste("Italy: Scenario (Credible Interval ",100*0.90,"%)",sep = ""),ylab=" Infected",xlab="Day",height=400,width=800) %>%  dySeries(c("mu.lower", "counts", "mu.upper"),label="counts")
 p<-p %>% dyLegend(show = "always", hideOnMouseOut = FALSE) %>%  dyShading(from = days.ahead[1], to = days.ahead[step.ahead], color = "#CCEBD6")%>% dyEvent(days.ahead[1], "Prediction", labelLoc = "bottom")
 p
 ```
 
 ![](draft_analysis_Italy_new_files/figure-gfm/scenario%20plot%20-1.png)<!-- -->
 
-At the end of the 2 weeks (2020-04-15): \*the number of infected is
-(1.126062210^{5}).
+At the end of the 2 weeks (2020-04-21): \*the number of infected is
+(1.128217710^{5}).
 
-\*the total number of COVID19 cases is expected to be (2.497883110^{5}).
+\*the total number of COVID19 cases is expected to be (2.963559610^{5}).
 
 The estimated (median) numbers of the current scenario by date are:
 
@@ -666,19 +745,19 @@ rownames(forecast)<-days.ahead
 kable(forecast)
 ```
 
-|            | Susceptible |  Exposed |  Infected |   Removed |
-| ---------- | ----------: | -------: | --------: | --------: |
-| 2020-04-02 |    60112059 | 220673.5 |  85235.85 |  62031.51 |
-| 2020-04-03 |    60104810 | 218757.6 |  89551.61 |  66884.62 |
-| 2020-04-04 |    60098389 | 216110.1 |  93538.80 |  71967.86 |
-| 2020-04-05 |    60093378 | 212217.0 |  97172.04 |  77263.45 |
-| 2020-04-06 |    60090328 | 206526.2 | 100432.99 |  82749.23 |
-| 2020-04-07 |    60088442 | 199878.7 | 103242.49 |  88406.22 |
-| 2020-04-08 |    60086147 | 193788.2 | 105652.76 |  94207.52 |
-| 2020-04-09 |    60083468 | 188686.1 | 107708.42 | 100130.48 |
-| 2020-04-10 |    60080597 | 183768.8 | 109426.48 | 106156.15 |
-| 2020-04-11 |    60079733 | 177102.4 | 110841.20 | 112261.09 |
-| 2020-04-12 |    60080241 | 169228.4 | 111957.39 | 118433.55 |
-| 2020-04-13 |    60082207 | 160555.0 | 112615.07 | 124673.69 |
-| 2020-04-14 |    60086406 | 149432.8 | 112830.09 | 130947.96 |
-| 2020-04-15 |    60091823 | 139469.6 | 112606.22 | 137182.09 |
+|            | Susceptible |  Exposed |  Infected |  Removed |
+| ---------- | ----------: | -------: | --------: | -------: |
+| 2020-04-08 |    59887846 | 225972.5 |  96171.85 | 107010.1 |
+| 2020-04-09 |    59881092 | 225358.6 |  98144.82 | 112404.1 |
+| 2020-04-10 |    59874492 | 224617.1 |  99991.05 | 117904.0 |
+| 2020-04-11 |    59868001 | 223785.7 | 101710.18 | 123502.8 |
+| 2020-04-12 |    59861606 | 222906.5 | 103309.75 | 129193.7 |
+| 2020-04-13 |    59855367 | 221888.5 | 104793.46 | 134970.0 |
+| 2020-04-14 |    59849118 | 220868.7 | 106160.14 | 140825.4 |
+| 2020-04-15 |    59843156 | 219705.1 | 107414.95 | 146752.7 |
+| 2020-04-16 |    59837374 | 218381.6 | 108579.13 | 152747.0 |
+| 2020-04-17 |    59831619 | 216974.3 | 109640.19 | 158803.4 |
+| 2020-04-18 |    59826216 | 215339.7 | 110601.71 | 164916.0 |
+| 2020-04-19 |    59820899 | 213709.9 | 111423.64 | 171077.6 |
+| 2020-04-20 |    59815647 | 211872.7 | 112180.56 | 177287.7 |
+| 2020-04-21 |    59810461 | 210357.5 | 112821.77 | 183534.2 |
