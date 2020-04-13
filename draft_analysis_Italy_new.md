@@ -2,7 +2,7 @@ COVID19 - Forecast and predictions using a time dependent SEIR model -
 Italy
 ================
 Paolo Girardi
-07 Aprile, 2020
+13 Aprile, 2020
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
 work is licensed under a
@@ -133,7 +133,7 @@ dat_csv$t<-1:days
 days
 ```
 
-    ## [1] 44
+    ## [1] 50
 
 Several outcomes can be potentially monitored, that is
 
@@ -357,20 +357,20 @@ summary(beta.model)
     ## 
     ## Deviance Residuals: 
     ##     Min       1Q   Median       3Q      Max  
-    ## -9.5581  -0.7714   0.9350   2.3860   7.2335  
+    ## -8.9420  -1.6153   0.8864   2.1532  11.0166  
     ## 
     ## Coefficients:
     ##              Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept) -0.879221   0.036918  -23.82   <2e-16 ***
-    ## time        -0.039475   0.001143  -34.55   <2e-16 ***
+    ## (Intercept) -0.933858   0.037760  -24.73   <2e-16 ***
+    ## time        -0.037323   0.001017  -36.69   <2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## (Dispersion parameter for gaussian family taken to be 14.29185)
+    ## (Dispersion parameter for gaussian family taken to be 19.67173)
     ## 
-    ##     Null deviance: 17600.06  on 39  degrees of freedom
-    ## Residual deviance:   543.09  on 38  degrees of freedom
-    ## AIC: -59.593
+    ##     Null deviance: 27350.16  on 45  degrees of freedom
+    ## Residual deviance:   865.56  on 44  degrees of freedom
+    ## AIC: -63.931
     ## 
     ## Number of Fisher Scoring iterations: 2
 
@@ -388,8 +388,8 @@ anova(beta.model,test="Chisq")
     ## 
     ## 
     ##      Df Deviance Resid. Df Resid. Dev  Pr(>Chi)    
-    ## NULL                    39    17600.1              
-    ## time  1    17057        38      543.1 < 2.2e-16 ***
+    ## NULL                    45    27350.2              
+    ## time  1    26485        44      865.6 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -418,7 +418,7 @@ p
 ![](draft_analysis_Italy_new_files/figure-gfm/R0%20forecast-1.png)<!-- -->
 
 R0 passes from a value of NA in the initial phase to an estimated value
-of 0.76 at the ending of the 14-days forecast.  
+of 0.65 at the ending of the 14-days forecast.  
 We use the library(EpiDynamics) and the function SEIR() to implement a
 SEIR model:
 
@@ -457,7 +457,7 @@ and parameters:
 I_start<-dat_csv$totale_positivi[dim(dat_csv)[1]]; I_start
 ```
 
-    ## [1] 94067
+    ## [1] 103616
 
 ``` r
 # initial number of recovered, based on the proportion of discharged from the health services
@@ -465,7 +465,7 @@ prop<-dat_csv$dimessi_guariti[dim(dat_csv)[1]]/dat_csv$totale_ospedalizzati[dim(
 R_start<-prop*dat_csv$totale_casi[dim(dat_csv)[1]]; R_start
 ```
 
-    ## [1] 101729.1
+    ## [1] 180687.6
 
 ``` r
 # Italy
@@ -542,14 +542,14 @@ est
 ```
 
     ## $par
-    ## [1] -3.387889
+    ## [1] -3.569632
     ## 
     ## $value
-    ## [1] 87.07227
+    ## [1] 98.96098
     ## 
     ## $counts
     ## function gradient 
-    ##       30       NA 
+    ##       28       NA 
     ## 
     ## $convergence
     ## [1] 0
@@ -561,7 +561,7 @@ est
 expit(est$par)
 ```
 
-    ## [1] 0.03267613
+    ## [1] 0.02739462
 
 ``` r
 f_exp<-3*I_1/N
@@ -574,18 +574,18 @@ pro<-SEIR(pars = parameters, init = initials, time = 0:last)
 cbind(pro$results$I*N,dat_csv$totale_positivi[c((days-last):days)])
 ```
 
-    ##           [,1]  [,2]
-    ##  [1,] 70065.00 70065
-    ##  [2,] 72968.03 73880
-    ##  [3,] 75738.23 75528
-    ##  [4,] 78391.10 77635
-    ##  [5,] 80939.00 80572
-    ##  [6,] 83397.10 83049
-    ##  [7,] 85776.10 85388
-    ##  [8,] 88086.31 88274
-    ##  [9,] 90337.06 91246
-    ## [10,] 92536.80 93187
-    ## [11,] 94693.18 94067
+    ##            [,1]   [,2]
+    ##  [1,]  85388.00  85388
+    ##  [2,]  87602.72  88274
+    ##  [3,]  89710.43  91246
+    ##  [4,]  91721.32  93187
+    ##  [5,]  93643.59  94067
+    ##  [6,]  95487.37  95262
+    ##  [7,]  97259.95  96877
+    ##  [8,]  98968.34  98273
+    ##  [9,] 100619.01 100269
+    ## [10,] 102217.81 102253
+    ## [11,] 103770.12 103616
 
 The values of initial parameters are
 
@@ -601,7 +601,7 @@ mu0;
 sigma
 ```
 
-    ## [1] 0.03267613
+    ## [1] 0.02739462
 
 ``` r
 #gamma
@@ -615,14 +615,14 @@ sigma
 pro$results$E[last+1]
 ```
 
-    ## [1] 0.003755084
+    ## [1] 0.004417445
 
 ``` r
 #that is 
 pro$results$E[last+1]/pro$results$I[last+1]
 ```
 
-    ## [1] 2.391887
+    ## [1] 2.567666
 
 ``` r
 #times the infected
@@ -651,16 +651,16 @@ model1 <- bsts(beta_norm[6:(days-4)],
                niter = 1000,seed=123)
 ```
 
-    ## =-=-=-=-= Iteration 0 Tue Apr  7 22:18:03 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 100 Tue Apr  7 22:18:03 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 200 Tue Apr  7 22:18:03 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 300 Tue Apr  7 22:18:03 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 400 Tue Apr  7 22:18:04 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 500 Tue Apr  7 22:18:04 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 600 Tue Apr  7 22:18:04 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 700 Tue Apr  7 22:18:04 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 800 Tue Apr  7 22:18:05 2020 =-=-=-=-=
-    ## =-=-=-=-= Iteration 900 Tue Apr  7 22:18:05 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 0 Mon Apr 13 23:24:43 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 100 Mon Apr 13 23:24:43 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 200 Mon Apr 13 23:24:44 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 300 Mon Apr 13 23:24:44 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 400 Mon Apr 13 23:24:44 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 500 Mon Apr 13 23:24:44 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 600 Mon Apr 13 23:24:44 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 700 Mon Apr 13 23:24:45 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 800 Mon Apr 13 23:24:45 2020 =-=-=-=-=
+    ## =-=-=-=-= Iteration 900 Mon Apr 13 23:24:45 2020 =-=-=-=-=
 
 ``` r
 par(mfrow = c(1,1))
@@ -728,10 +728,10 @@ p
 
 ![](draft_analysis_Italy_new_files/figure-gfm/scenario%20plot%20-1.png)<!-- -->
 
-At the end of the 2 weeks (2020-04-21): \*the number of infected is
-(1.128217710^{5}).
+At the end of the 2 weeks (2020-04-27): \*the number of infected is
+(1.200479810^{5}).
 
-\*the total number of COVID19 cases is expected to be (2.963559610^{5}).
+\*the total number of COVID19 cases is expected to be (3.882116810^{5}).
 
 The estimated (median) numbers of the current scenario by date are:
 
@@ -745,19 +745,19 @@ rownames(forecast)<-days.ahead
 kable(forecast)
 ```
 
-|            | Susceptible |  Exposed |  Infected |  Removed |
-| ---------- | ----------: | -------: | --------: | -------: |
-| 2020-04-08 |    59887846 | 225972.5 |  96171.85 | 107010.1 |
-| 2020-04-09 |    59881092 | 225358.6 |  98144.82 | 112404.1 |
-| 2020-04-10 |    59874492 | 224617.1 |  99991.05 | 117904.0 |
-| 2020-04-11 |    59868001 | 223785.7 | 101710.18 | 123502.8 |
-| 2020-04-12 |    59861606 | 222906.5 | 103309.75 | 129193.7 |
-| 2020-04-13 |    59855367 | 221888.5 | 104793.46 | 134970.0 |
-| 2020-04-14 |    59849118 | 220868.7 | 106160.14 | 140825.4 |
-| 2020-04-15 |    59843156 | 219705.1 | 107414.95 | 146752.7 |
-| 2020-04-16 |    59837374 | 218381.6 | 108579.13 | 152747.0 |
-| 2020-04-17 |    59831619 | 216974.3 | 109640.19 | 158803.4 |
-| 2020-04-18 |    59826216 | 215339.7 | 110601.71 | 164916.0 |
-| 2020-04-19 |    59820899 | 213709.9 | 111423.64 | 171077.6 |
-| 2020-04-20 |    59815647 | 211872.7 | 112180.56 | 177287.7 |
-| 2020-04-21 |    59810461 | 210357.5 | 112821.77 | 183534.2 |
+|            | Susceptible |  Exposed | Infected |  Removed |
+| ---------- | ----------: | -------: | -------: | -------: |
+| 2020-04-14 |    59758536 | 266864.8 | 105119.2 | 186479.7 |
+| 2020-04-15 |    59750793 | 267296.9 | 106553.9 | 192353.1 |
+| 2020-04-16 |    59742898 | 267878.1 | 107922.4 | 198304.3 |
+| 2020-04-17 |    59734706 | 268700.1 | 109233.5 | 204329.5 |
+| 2020-04-18 |    59726549 | 269507.9 | 110503.6 | 210426.3 |
+| 2020-04-19 |    59718521 | 270155.3 | 111720.4 | 216593.0 |
+| 2020-04-20 |    59710040 | 271396.6 | 112904.6 | 222825.3 |
+| 2020-04-21 |    59701773 | 272015.9 | 114026.5 | 229120.3 |
+| 2020-04-22 |    59693221 | 273181.4 | 115170.0 | 235484.3 |
+| 2020-04-23 |    59685140 | 273714.1 | 116234.7 | 241900.6 |
+| 2020-04-24 |    59677560 | 274086.0 | 117234.1 | 248384.8 |
+| 2020-04-25 |    59669304 | 274762.5 | 118291.1 | 254926.4 |
+| 2020-04-26 |    59660533 | 276398.6 | 119223.5 | 261512.1 |
+| 2020-04-27 |    59649969 | 279068.2 | 120048.0 | 268163.7 |
